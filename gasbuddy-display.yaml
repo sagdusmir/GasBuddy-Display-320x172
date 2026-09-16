@@ -1,0 +1,1748 @@
+substitutions:
+  # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+  # You will propably need to do changes only to the following lines (if at all): #
+  # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+  # Name of the ESPHome device (modify if you like, avoid special characters)
+  name: gasbuddy-display
+  device_description: "Monitor a GasBuddy Scale"
+  version: "GasBuddyDisplay 0.0.1"
+
+  # either pull values from secrets.yaml
+  # or have it directly in this file
+  wifi_ssid: !secret wifi_ssid
+  wifi_password: !secret wifi_password
+  # wifi_ssid: "INSERT_YOUR_WIFI_SSID"
+  # wifi_password: "INSERT_YOUR_WIFI_PASSWORD"
+
+  # Enter data of the newly created Home Assistant ESPHome device. Example:
+  api_encryption_key: "YcM9Kcc+DRDHfISFcF8FlDN0WuanM1LJV3duK/PugZA="
+
+  # over-the-air updates (ESPHome CLI or Home Assistant add-On)
+  # Hint: if you changed this value on the device, you might have to alter
+  # this value here to match it. esphome cli uses the value from the yaml for the ota update!
+  ota_password: "8fdf9f656d36180bfba92d596c9e7db4"
+
+  # color scheme
+  SETTINGS_COLOR_SCHEME_IDX: "0"  # initially selected color scheme
+  COLOR_SCHEMES: |
+    //                  idx 100%      75%       50%       25%       <=25%    GOOD      BAD       LIGHT
+    {                        
+      {"white",         {0, 0xffffff, 0xdfdfdf, 0xbfbfbf, 0x808080, 0x808080, 0x8bff85, 0xff5757, 0xffff00}},
+      {"amber",         {1, 0xffb900, 0xc08b00, 0x805d00, 0x392900, 0x392900, 0x58b100, 0xff5600, 0xffff00}},
+      {"cyan",          {2, 0x68e2fb, 0x34acbf, 0x007582, 0x003c43, 0x003c43, 0x75fb8a, 0xea838d, 0xffff00}},
+      {"night red",     {3, 0xff0059, 0xe0004f, 0xc00044, 0x80002e, 0x80002e, 0xff0059, 0xe4d300, 0xffff00}},
+      {"green",         {4, 0x00ff00, 0x03d600, 0x058d00, 0x046f00, 0x046f00, 0x00ff00, 0xfe3a03, 0xffff00}},
+      {"night blue",    {5, 0x1a00ff, 0x1700db, 0x1300b6, 0x0d007a, 0x0d007a, 0x00ff4d, 0xff0092, 0xffff00}},
+      {"purple",        {6, 0xff00e4, 0xe000c8, 0xc000ac, 0x800073, 0x800073, 0x00ffb0, 0xff1100, 0xffff00}},
+      {"yellow",        {7, 0xffda00, 0xc0a400, 0x806d00, 0x262000, 0x262000, 0x64dc00, 0xff5900, 0xffff00}},
+      {"white (clean)", {8, 0xffffff, 0xdfdfdf, 0xbfbfbf, 0x808080, 0x000000, 0x8bff85, 0xff5757, 0xffff00}}
+    }
+
+  COLOR_SCHEME_OPTIONS:  # required for Home Assistant
+    - "white"
+    - "amber"
+    - "cyan"
+    - "night red"
+    - "green"
+    - "night blue"
+    - "purple"
+    - "yellow"
+    - "white (clean)"
+
+  FORCE_SHADOW_COLOR_TO_BLACK: 'false'  # standard: use COLOR_00 for shadows
+  # FORCE_SHADOW_COLOR_TO_BLACK: 'true'  # alternative: symbol and text shadows should not be visible
+
+  # minimum gas tank level
+  SETTINGS_MIN_GAS_VALUE: "15"
+
+  # battery SOC
+  SETTINGS_HIDE_SOC: "false"
+  SETTINGS_MIN_SOC_VALUE: "25"
+
+  # interval for alarm sound
+  Beeper_interval: "5s"
+
+  # sounds (in RTTTL syntax):
+  Wifi_Connect_Sound: "dadi:d=16,o=6,b=140:d6,32p,e6"
+  Wifi_Disconnect_Sound: "siren:d=8,o=5,b=100:d,e,d,e,d,e,d,e"
+  
+  # D A N G E R  Z O N E! # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
+  # From here on, please only make changes if you know what you are doing and   #
+  # have an idea of what you want to achieve. :)                                #
+  # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+  # shades of white (initial start values since substitutions work best)
+  COLOR_100:   "0xffffff"  # 100% brightness
+  COLOR_75:    "0xbfbfbf"  #  75%
+  COLOR_50:    "0x808080"  #  50%
+  COLOR_25:    "0x404040"  #  25%
+  COLOR_00:    "0x404040"  # shadows
+  COLOR_GOOD:  "0x8bff85"
+  COLOR_BAD:   "0xff5757"
+  COLOR_LIGHT: "0xffff00"
+
+esphome:
+  name: ${name}
+  build_path: /tmp/esphome_build/${name}
+  min_version: "2026.8.2"
+
+  project:
+    name: "gasbuddy.display320_172"
+    version: ${version}
+
+  on_boot:
+    # priority: 1100 # stay above 1000 and below 1500!  # CHANGE FOR MINI
+    then:
+      - lambda: id(boot_start_time) = millis();
+      - light.turn_on: backlight
+
+esp32:
+  board: esp32-c6-devkitc-1
+  # variant: esp32c6  # use either board: or variant
+  flash_size: 8MB
+  framework:
+    type: esp-idf
+    sdkconfig_options:
+      # CONFIG_ESP_TASK_WDT_EN: n  # Disables Task Watchdog Timer (TWDT)
+      CONFIG_ESP_INT_WDT: "n"      # Disables Interrupt Watchdog Timer (IWDT)
+      # COMPILER_OPTIMIZATION_SIZE: "y"  # optimize for size
+      CONFIG_COMPILER_OPTIMIZATION_PERF: "y"
+      CONFIG_ESP32S3_DEFAULT_CPU_FREQ_240: "y"
+      CONFIG_ESP32S3_DATA_CACHE_64KB: "y"
+      CONFIG_ESP32S3_DATA_CACHE_LINE_64B: "y"
+      CONFIG_SPIRAM_FETCH_INSTRUCTIONS: "y"
+      CONFIG_SPIRAM_RODATA: "y"
+      CONFIG_ESP_WIFI_TASK_CORE_ID: "0"
+      CONFIG_BT_BTC_TASK_CORE_ID: "0"
+      CONFIG_BT_NIMBLE_PINNED_TO_CORE: "0"
+      CONFIG_TCPIP_TASK_CORE_ID: "0"
+      CONFIG_ESP_TIMER_TASK_CORE_ID: "0"
+      CONFIG_ESP_MAIN_TASK_AFFINITY_CPU1: "y"
+
+# psram:   # CHANGE FOR MINI
+#   mode: octal
+#   speed: 80MHz
+
+logger:
+  baud_rate: 921600  # enable logging
+  # baud_rate: 0  # no logging -> saves power
+
+api: # enable Home Assistant API
+  max_connections: 5
+  encryption:
+    key: ${api_encryption_key}
+  reboot_timeout: 0s  
+
+http_request:
+  # optional global defaults (recommended for reliability)
+  timeout: 5s
+  verify_ssl: true
+  follow_redirects: true
+
+ota:
+  - platform: esphome
+    id: my_ota
+    password: ${ota_password}
+
+wifi:
+  id: my_wifi
+  ssid: ${wifi_ssid}
+  password: ${wifi_password}
+  fast_connect: False
+  reboot_timeout: 0s
+  on_connect:
+    then:
+      - rtttl.play: ${Wifi_Connect_Sound}
+      - lambda: |-
+          id(current_ip_address) = id(wifi_ip_sensor).state.c_str();
+      - globals.set:
+          id: wifi_connected
+          value: 'true'
+      - globals.set:
+          id: apply_wifi_started_by_user
+          value: 'false'
+      - lvgl.widget.refresh: wifi_connect_label
+      - lvgl.widget.refresh: current_wifi_ip_label
+  on_disconnect:
+    then:
+      - rtttl.play: ${Wifi_Disconnect_Sound}
+      - globals.set:
+          id: wifi_connected
+          value: 'false'
+      - globals.set:
+          id: current_ip_address
+          value: '" "'  # not connected
+      - lvgl.widget.refresh: wifi_connect_label
+      - lvgl.widget.refresh: current_wifi_ip_label
+
+# External Components
+external_components:
+  - source: github://widget/esphome-components
+    components: [axs5106]
+    refresh: 0s
+
+
+i2c: # used for touchscreen
+  - id: touchscreen_bus
+    sda: GPIO18
+    scl: GPIO19
+    frequency: 400kHz
+    scan: false
+  # I2C Bus:
+  #   SDA Pin: GPIO18
+  #   SCL Pin: GPIO19
+  #   Frequency: 400000 Hz
+  #   Recovery: bus successfully recovered
+  # Results from bus scan:
+  # Found device at address 0x63
+  # Found device at address 0x6B
+
+# Touchscreen
+touchscreen:
+  - platform: axs5106
+    id: my_touchscreen
+    i2c_id: touchscreen_bus
+    interrupt_pin: GPIO21
+    reset_pin: GPIO20
+    calibration:
+      x_min: 0
+      y_min: 0
+      y_max: 172
+      x_max: 320
+    transform:
+      swap_xy: true
+      mirror_x: true
+      mirror_y: true
+    # for test purposes, touch coordinates can be logged
+    # on_touch:
+    #     - lambda: |-
+    #         ESP_LOGI("Touch", "Touch detected at x=%d, y=%d", touch.x, touch.y);
+    on_release:
+      - if:
+          condition: lvgl.is_paused
+          then:
+            - logger.log: "Display is resuming"
+            - lvgl.resume:
+            - lvgl.widget.redraw:
+            - light.turn_on: backlight
+
+spi:  # used for display
+  clk_pin: GPIO1
+  mosi_pin: GPIO2
+
+display:
+  - platform: mipi_spi
+    id: my_display
+    model: ST7789V
+    dc_pin: GPIO15
+    cs_pin: GPIO14
+    reset_pin: GPIO22
+    dimensions:
+      width: 320
+      height: 172
+      offset_height: 34
+      offset_width: 0
+    transform:
+      swap_xy: true
+      mirror_x: true
+      mirror_y: true
+    invert_colors: false
+    data_rate: 80MHz
+    color_order: bgr
+    # update_interval: 1s
+    
+output:
+  - platform: ledc
+    id: gpio_backlight_pwm
+    pin: GPIO23
+
+  - id: helper_low_beeper
+    platform: ledc
+    pin: GPIO6
+  - platform: ledc
+    id: rtttl_out
+    pin: GPIO5
+
+light:
+  - id: backlight
+    name: Backlight
+    platform: monochromatic
+    output: gpio_backlight_pwm
+    restore_mode: ALWAYS_ON
+    internal: true
+
+rtttl:
+  id: my_rtttl
+  output: rtttl_out
+  gain: 80%
+
+interval:
+  - interval: 10s
+    then:
+      - lvgl.widget.refresh: warning_on_label
+  # - interval: ${Beeper_interval}
+  #   then:
+  #     - lambda: |-
+  #         if( ((id(zone1_limit_value) > 0) && (id(zone1_value) >= id(zone1_limit_value)))
+  #         ) {
+  #           id(my_rtttl).play("${Zone_Limit_Alarm_Sound}");
+  #         }
+  - interval: 1s
+    then:
+      - if:
+          condition:
+            and:
+              - lambda: return !id(boot_screen_color_scheme_init);
+          then:
+            - lambda: |-
+                id(boot_screen_color_scheme_init) = true;
+                id(apply_color_scheme).execute();
+
+      - if:
+          condition:
+            and:
+              - lambda: 'return !id(boot_screen_hidden);'
+              - lambda: 'return millis() - id(boot_start_time) >= 2000;'
+          then:
+            - script.execute: hide_boot_screen
+
+globals:
+  - id: wifi_connected
+    type: bool
+    initial_value: 'false'
+  - id: warning_on
+    type: bool
+    initial_value: 'false'
+  - id: gas_weight
+    type: int32_t
+    initial_value: '-1'
+  - id: gas_percent
+    type: int32_t
+    initial_value: '0'
+  - id: apply_wifi_started_by_user  # for supressing sounds
+    type: bool
+    initial_value: 'false'
+
+  - id: color_schemes
+    type: std::map<std::string, std::vector<uint32_t>>
+    initial_value: '${COLOR_SCHEMES}'
+  - id: color_100
+    type: int
+    initial_value: '0x000000'
+  - id: color_75
+    type: int
+    initial_value: '0x000000'
+  - id: color_50
+    type: int
+    initial_value: '0x000000'
+  - id: color_25
+    type: int
+    initial_value: '0x000000'
+  - id: color_00
+    type: int
+    initial_value: '0x000000'
+  - id: color_good
+    type: int
+    initial_value: '0x000000'
+  - id: color_bad
+    type: int
+    initial_value: '0x000000'
+  - id: color_light
+    type: int
+    initial_value: '0x000000'
+
+  - id: boot_start_time
+    type: uint32_t
+    initial_value: '0'
+  - id: boot_screen_hidden
+    type: bool
+    initial_value: 'false'
+  - id: boot_screen_color_scheme_init
+    type: bool
+    initial_value: 'false'
+
+  - id: battery_soc_value
+    type: int
+    initial_value: '0'
+
+  - id: settings_min_gas_value_persistent
+    type: int
+    initial_value: '${SETTINGS_MIN_GAS_VALUE}'
+    restore_value: true
+  - id: settings_min_soc_value_persistent
+    type: int
+    initial_value: '${SETTINGS_MIN_SOC_VALUE}'
+    restore_value: true
+  - id: settings_hide_soc_persistent
+    type: bool
+    initial_value: '${SETTINGS_HIDE_SOC}'
+    restore_value: true
+  - id: settings_display_timeout_value_persistent
+    type: int
+    initial_value: '30'
+    restore_value: true
+  - id: settings_color_scheme_idx_persistent
+    type: int
+    initial_value: '${SETTINGS_COLOR_SCHEME_IDX}'
+    restore_value: true
+
+  - id: current_ip_address
+    type: std::string
+    initial_value: '" "'  # not connected
+
+text_sensor:
+  - platform: wifi_info
+    ip_address:
+      id: wifi_ip_sensor
+
+  - platform: template
+    name: "Software Version"
+    lambda: |-
+      return std::string("${version}");
+
+select:
+  - platform: template
+    id: color_scheme_select
+    name: "Color Scheme"
+    optimistic: true
+    options: ${COLOR_SCHEME_OPTIONS}
+    on_value:
+      - lambda: |-
+          for (const auto& pair : id(color_schemes)) {
+            if (pair.first == x) {
+              id(settings_color_scheme_idx_persistent) = static_cast<int>(pair.second[0]);
+              id(apply_color_scheme).execute();
+              break;
+            }
+          }
+
+switch:
+  - platform: template
+    name: "Hide Battery SOC"
+    id: hide_soc_switch
+    optimistic: true
+    on_turn_on:
+      - lambda: id(settings_hide_soc_persistent) = true;
+      - lvgl.widget.refresh: battery_symbol_obj
+    on_turn_off:
+      - lambda: id(settings_hide_soc_persistent) = false;
+      - lvgl.widget.refresh: battery_symbol_obj
+
+number:
+  - platform: template
+    name: "Min Gas Value"
+    id: min_gas_value_number
+    optimistic: true
+    min_value: 5
+    max_value: 60
+    step: 5
+    unit_of_measurement: "%"
+    initial_value: 20.0
+    on_value:
+      - lambda: id(settings_min_gas_value_persistent) = int(x);
+      - lvgl.widget.refresh: [warning_on_label, gas_percent_bar, gas_warning_label2]
+
+  - platform: template
+    name: "Min Battery SOC Value"
+    id: min_soc_value_number
+    optimistic: true
+    min_value: 5
+    max_value: 50
+    step: 10
+    unit_of_measurement: "%"
+    initial_value: 40.0
+    on_value:
+      - lambda: id(settings_min_soc_value_persistent) = int(x);
+      - lvgl.widget.refresh: [warning_on_label, battery_symbol, soc_warning_label2]
+
+font:
+  - file: 'https://raw.githubusercontent.com/sagdusmir/G32-Grill-Display-480x320-BTpref/main/fonts/MaterialDesign-Webfont/materialdesignicons-webfont.ttf'
+    # file: 'fonts/MaterialDesign-Webfont/materialdesignicons-webfont.ttf'
+    id: ICON_FONT_30
+    size: 30
+    glyphs:
+      - "\U000F15CB" # mdi-numeric-positive-1
+      - "\U000F1052" # mdi-numeric-negative-1
+  - file: 'https://raw.githubusercontent.com/sagdusmir/G32-Grill-Display-480x320-BTpref/main/fonts/MaterialDesign-Webfont/materialdesignicons-webfont.ttf'
+    # file: 'fonts/MaterialDesign-Webfont/materialdesignicons-webfont.ttf'
+    id: ICON_FONT_20
+    size: 20
+    glyphs:
+      - "\U000F12A3" # mdi-battery-high
+      - "\U000F12A2" # mdi-battery-medium
+      - "\U000F12A1" # mdi-battery-low
+      - "\U000F008E" # mdi-battery-outline
+  - file: 'https://raw.githubusercontent.com/sagdusmir/G32-Grill-Display-480x320-BTpref/main/fonts/MaterialDesign-Webfont/materialdesignicons-webfont.ttf'
+    # file: 'fonts/MaterialDesign-Webfont/materialdesignicons-webfont.ttf'
+    id: ICON_FONT_18
+    size: 18
+    glyphs:
+      - "\U000F05A9" # mdi-wifi
+      - "\U000F00AF" # mdi-bluetooth
+  - file: 'https://raw.githubusercontent.com/sagdusmir/G32-Grill-Display-480x320-BTpref/main/fonts/MaterialDesign-Webfont/materialdesignicons-webfont.ttf'
+    # file: 'fonts/MaterialDesign-Webfont/materialdesignicons-webfont.ttf'
+    id: ICON_FONT_9
+    size: 9
+    glyphs:
+      - "\U000F009A" # mdi-bell
+  - file: 'https://raw.githubusercontent.com/sagdusmir/G32-Grill-Display-480x320-BTpref/main/fonts/DESG07/DSEG7ClassicMini-Bold.ttf'
+    # file: 'fonts/DESG07/DSEG7ClassicMini-Bold.ttf'
+    id: SEGMENT_FONT_25
+    size: 25
+    glyphs:
+      - "0"
+      - "1"
+      - "2"
+      - "3"
+      - "4"
+      - "5"
+      - "6"
+      - "7"
+      - "8"
+      - "9"
+      - "-"
+      - " "
+  - file: 'https://raw.githubusercontent.com/sagdusmir/G32-Grill-Display-480x320-BTpref/main/fonts/DESG07/DSEG7ClassicMini-Bold.ttf'
+    # file: 'fonts/DESG07/DSEG7ClassicMini-Bold.ttf'
+    id: SEGMENT_FONT_20
+    size: 20
+    glyphs:
+      - "0"
+      - "1"
+      - "2"
+      - "3"
+      - "4"
+      - "5"
+      - "6"
+      - "7"
+      - "8"
+      - "9"
+      - "-"
+      - " "
+  - file: 'https://raw.githubusercontent.com/sagdusmir/G32-Grill-Display-480x320-BTpref/main/fonts/Montserrat/Montserrat-Bold.ttf'
+    # file: 'fonts/Montserrat/Montserrat-Bold.ttf'
+    id: MONTSERRAT_BOLD_FONT_18
+    size: 18
+    glyphs:
+      - "0"
+      - "1"
+      - "2"
+      - "3"
+      - "4"
+      - "5"
+      - "6"
+      - "7"
+      - "8"
+      - "9"
+      - " "
+      - "-"
+      - "("
+      - ")"
+      - "a"
+      - "b"
+      - "c"
+      - "d"
+      - "e"
+      - "f"
+      - "g"
+      - "h"
+      - "i"
+      - "j"
+      - "k"
+      - "l"
+      - "m"
+      - "n"
+      - "o"
+      - "p"
+      - "q"
+      - "r"
+      - "s"
+      - "t"
+      - "u"
+      - "v"
+      - "w"
+      - "x"
+      - "y"
+      - "z"
+  - file: 'https://raw.githubusercontent.com/sagdusmir/G32-Grill-Display-480x320-BTpref/main/fonts/Montserrat/Montserrat-Bold.ttf'
+    # file: 'fonts/Montserrat/Montserrat-Bold.ttf'
+    id: MONTSERRAT_BOLD_FONT_14
+    size: 14
+    glyphs:
+      - "Z"
+      - "O"
+      - "N"
+      - "E"
+      - "S"
+      - "R"
+      - "T"
+      - "M"
+      - "P"
+      - "A"
+      - "U"
+      - "B"
+      - "I"
+      - "W"
+      - "C"
+      - "D"
+      - "L"
+      - "G"
+      - "1"
+      - "2"
+      - "3"
+      - "4"
+      - " "
+
+
+lvgl:
+  buffer_size: 50%
+  displays: my_display
+  touchscreens: my_touchscreen
+  bg_color: 0
+  border_width: 0
+  outline_width: 0
+  theme:
+    label:
+      bg_color: 0
+      bg_opa: COVER
+      width: 120
+      text_align: CENTER
+    bar:
+      radius: 5
+      indicator:
+        radius: 5
+        arc_color: red
+    arc:
+      radius: 5
+      indicator:
+        arc_rounded: false
+        radius: 5
+    roller:
+      text_font: MONTSERRAT_20
+      width: 60
+      selected:
+        text_font: MONTSERRAT_BOLD_FONT_18
+    slider:
+      bg_opa: COVER
+      radius: 0
+      adv_hittest: true
+      border_width: 0
+      indicator:
+        radius: 0
+      knob:
+        radius: 2
+
+    textarea:
+      width: 340
+      height: 30
+      text_font: MONTSERRAT_18
+      border_width: 1
+    keyboard:
+      text_color: ${COLOR_100}
+      bg_color: ${COLOR_25}
+      items:
+        bg_color: ${COLOR_100}
+        text_color: ${COLOR_25}
+
+  style_definitions:
+    - id: arc_value_style
+      x: 1
+      y: 1
+      width: 74
+      height: 74
+      arc_opa: COVER
+      arc_rounded: false
+      arc_width: 5
+    - id: arc_limit_style
+      x: 4
+      y: 4
+      width: 68
+      height: 68
+      arc_opa: 100%
+      arc_rounded: false
+      arc_width: 2
+      arc_color: 0
+    - id: item_obj_style
+      width: 76
+      height: 76
+      bg_color: 0
+      pad_all: 0
+      radius: 0
+      outline_width: 0
+      border_width: 0
+      outline_pad: 0
+
+  # send display to idle state after timeout
+  on_idle:
+    timeout: !lambda "return(id(settings_display_timeout_value_persistent) * 1000);"
+    then:
+    - if:
+        condition:
+          - lambda: "return id(settings_display_timeout_value_persistent) > 0;"
+        then:
+          - logger.log: "Display is idle"
+          - light.turn_off: backlight
+          - lvgl.pause:
+
+  # boot screen with spinner - just for fun
+  top_layer:
+    widgets:
+      - obj:
+          id: boot_screen
+          x: 0
+          y: 0
+          width: 320
+          height: 172
+          bg_color: 0
+          bg_opa: COVER
+          radius: 0
+          pad_all: 0
+          border_width: 0
+          widgets:
+            - spinner:
+                id: boot_spinner
+                align: CENTER
+                spin_time: 1s
+                arc_length: 60deg
+                arc_width: 4
+                arc_color: 0
+                indicator:
+                  arc_color: 0  # overridden after color scheme is known
+                  arc_width: 4
+
+      - obj:
+          id: status_bar_right
+          x: 304
+          y: 0
+          width: 16
+          height: 172
+          bg_color: 0
+          bg_opa: COVER
+          pad_all: 0
+          border_width: 0
+          hidden: true
+          radius: 0
+          widgets:            
+            - obj: # symbol for batter low warning
+                id: battery_symbol_obj
+                x: 0
+                y: 11
+                width: 16
+                height: 20
+                bg_color: 0
+                pad_all: 0
+                outline_width: 0
+                border_width: 0
+                border_side: NONE
+                radius: 0
+                hidden: !lambda |-
+                  return id(settings_hide_soc_persistent);
+                widgets:
+                  - label:
+                      id: battery_symbol
+                      x: 0
+                      y: 0
+                      text_font: ICON_FONT_20
+                      text_align: LEFT
+                      width: 15
+                      text_color: !lambda |-
+                        if( id(battery_soc_value) <= id(settings_min_soc_value_persistent) ) {
+                          return lv_color_hex(id(color_bad));
+                        }
+                        return lv_color_hex(id(color_good));
+                      text: !lambda |-
+                        const char* icons[4] = {"\U000F008E","\U000F12A1","\U000F12A2","\U000F12A3"};
+                        float soc = id(battery_soc_value);
+                        int idx = soc <= 15 ? 0 :
+                            soc <= 40 ? 1 :
+                            soc <= 80 ? 2 : 3;
+                        return icons[idx];
+                  - line:
+                      id: battery_symbol_fix  # glyph scaling artefact
+                      points:
+                        - 8, 6
+                        - 12, 6
+                      line_width: 1
+                      line_rounded: false
+                      line_color: !lambda |-
+                          float soc = id(battery_soc_value);
+                          if (soc <= 80) {
+                            return lv_color_hex(0x000000);
+                          }
+                          if( id(battery_soc_value) <= id(settings_min_soc_value_persistent) ) {
+                            return lv_color_hex(id(color_bad));
+                          }
+                          return lv_color_hex(id(color_good));
+            - label: # symbol for successfull WIFI connection
+                id: wifi_connect_label
+                x: 3
+                y: 47
+                text_font: MONTSERRAT_10
+                text_align: LEFT
+                width: 13
+                text_color: !lambda |-
+                  if( id(wifi_connected) ) {
+                    return lv_color_hex(id(color_good));
+                  }
+                  return lv_color_hex(id(color_00));
+                text: "\uF1EB" # WIFI symbol
+            - label:
+                id: warning_on_label
+                x: 4
+                y: 61
+                text_font: MONTSERRAT_10
+                text_color: !lambda |-
+                  if (millis() - id(boot_start_time) < 15000) {
+                    // first 15 seconds after boot: no warning
+                    return lv_color_hex(id(color_00));
+                  }
+                  if((id(battery_soc_value) <= id(settings_min_soc_value_persistent))
+                    || id(warning_on)
+                    || (id(gas_percent) <= id(settings_min_gas_value_persistent))
+                  ) {
+                    return lv_color_hex(id(color_bad));
+                  }
+                  return lv_color_hex(id(color_00));
+                text_align: LEFT
+                width: 12
+                text: "\uF071"
+            - obj:
+                id: gas_level_obj
+                x: 0
+                y: 81
+                width: 16
+                height: 91
+                pad_all: 0
+                bg_color: 0
+                border_width: 0
+                radius: 0
+                hidden: !lambda |-
+                  return false;
+                widgets:
+                  - bar:
+                      id: gas_percent_bar
+                      x: 5
+                      y: 0
+                      height: 80
+                      width: 8
+                      radius: 0
+                      min_value: 1
+                      max_value: 100
+                      bg_opa: COVER
+                      bg_color: !lambda return lv_color_hex(id(color_25));
+                      indicator:
+                        radius: 0
+                        bg_color: !lambda return lv_color_hex(id(color_100)); // placeholder
+                      value: !lambda |-
+                        int y = id(gas_weight);
+                        if( y < 0) {
+                          return 0;
+                        }
+                        int z = id(gas_percent);
+                        if( z <= id(settings_min_gas_value_persistent) ) {
+                          lv_obj_set_style_bg_color(id(gas_percent_bar), lv_color_hex(id(color_bad)), LV_PART_INDICATOR);
+                        } else {                          
+                          lv_obj_set_style_bg_color(id(gas_percent_bar), lv_color_hex(id(color_good)), LV_PART_INDICATOR);
+                        }
+                        return z;
+                  - label:  # 1/10
+                      x: 4
+                      y: 0
+                      width: 10
+                      height: 9
+                      bg_opa: TRANSP                      
+                      border_width: 1
+                      radius: 0
+                      border_color: 0
+                      text: " "
+                  - label:  # 2/10
+                      x: 4
+                      y: 8
+                      width: 10
+                      height: 9
+                      bg_opa: TRANSP                      
+                      border_width: 1
+                      radius: 0
+                      border_color: 0
+                      text: " "
+                  - label:  # 3/10
+                      x: 4
+                      y: 16
+                      width: 10
+                      height: 9
+                      bg_opa: TRANSP                      
+                      border_width: 1
+                      radius: 0
+                      border_color: 0
+                      text: " "
+                  - label:  # 4/10
+                      x: 4
+                      y: 24
+                      width: 10
+                      height: 9
+                      bg_opa: TRANSP                      
+                      border_width: 1
+                      radius: 0
+                      border_color: 0
+                      text: " "
+                  - label:  # 5/10
+                      x: 4
+                      y: 32
+                      width: 10
+                      height: 9
+                      bg_opa: TRANSP                      
+                      border_width: 1
+                      radius: 0
+                      border_color: 0
+                      text: " "
+                  - label:  # 6/10
+                      x: 4
+                      y: 40
+                      width: 10
+                      height: 9
+                      bg_opa: TRANSP                      
+                      border_width: 1
+                      radius: 0
+                      border_color: 0
+                      text: " "
+                  - label:  # 7/10
+                      x: 4
+                      y: 48
+                      width: 10
+                      height: 9
+                      bg_opa: TRANSP                      
+                      border_width: 1
+                      radius: 0
+                      border_color: 0
+                      text: " "
+                  - label:  # 8/10
+                      x: 4
+                      y: 56
+                      width: 10
+                      height: 9
+                      bg_opa: TRANSP                      
+                      border_width: 1
+                      radius: 0
+                      border_color: 0
+                      text: " "
+                  - label:  # 9/10
+                      x: 4
+                      y: 64
+                      width: 10
+                      height: 9
+                      bg_opa: TRANSP                      
+                      border_width: 1
+                      radius: 0
+                      border_color: 0
+                      text: " "
+                  - label:  # 10/10
+                      x: 4
+                      y: 72
+                      width: 10
+                      height: 9
+                      bg_opa: TRANSP                      
+                      border_width: 1
+                      radius: 0
+                      border_color: 0
+                      text: " "
+            - label: # catch clicks
+                x: 0
+                y: 0
+                width: 16
+                height: 172
+                bg_opa: TRANSP
+                pad_all: 0
+                border_width: 0
+                radius: 0
+                clickable: true
+                text: " "
+                on_press:
+                  - script.execute: toggle_settings_page
+
+  pages:
+    - id: arcs_page
+      bg_color: 0
+      bg_opa: COVER
+      pad_all: 0
+      widgets:
+        - obj:  # only for drawing the horizontal divider
+            id: zones_bar
+            x: 0
+            y: 0
+            width: 304
+            height: 20
+            border_color: !lambda return lv_color_hex(id(color_75));
+            border_width: 10
+            border_side:
+              - TOP
+            radius: 10
+            pad_all: 0
+            bg_color: 0
+        - label:
+            id: zones_title
+            x: 121
+            y: -4
+            width: 62
+            bg_opa: COVER
+            text_font: MONTSERRAT_BOLD_FONT_14
+            text_align: CENTER
+            text_color: !lambda return lv_color_hex(id(color_75));
+            text: "ZONES"
+
+        - obj:  # zones
+            x: 0
+            y: 10
+            width: 304
+            height: 76
+            scrollable: false
+            pad_all: 0
+            border_width: 0
+            radius: 0
+            bg_color: 0
+            widgets:
+              - obj:  # zone 1
+                  id: zone1_obj
+                  x: 0
+                  y: 4
+                  styles: item_obj_style
+                  clickable: !lambda |-
+                    return true;
+                  widgets:
+                    - label:  # background
+                        id: zone1_label_shadow
+                        x: 0
+                        y: 15
+                        width: 62
+                        text_font: SEGMENT_FONT_20
+                        text: "888"
+                        text_color: !lambda return lv_color_hex(id(color_00));
+                        text_align: RIGHT
+                        hidden: !lambda |-
+                          return false;
+                    - label:  # background large
+                        id: zone1_label_large_shadow
+                        x: 0
+                        y: 25
+                        width: 69
+                        text_font: SEGMENT_FONT_25
+                        text: "888"
+                        text_color: !lambda return lv_color_hex(id(color_00));
+                        text_align: RIGHT
+                        hidden: !lambda |-
+                          return false;
+                    - label:
+                        id: zone1_label_large
+                        x: 0
+                        y: 25
+                        width: 69
+                        bg_opa: TRANSP
+                        text_align: RIGHT
+                        text_font: SEGMENT_FONT_25
+                        text: !lambda |-
+                          return ("---");
+                        hidden: !lambda |-
+                          return false;
+                    - label:  # alarm bell
+                        id: zone1_limit_label_bell
+                        x: 60
+                        y: 37
+                        width: 15
+                        text_font: ICON_FONT_9
+                        text_align: LEFT
+                        text: "\U000F009A"
+                        text_color: !lambda |-
+                          return lv_color_hex(id(color_100));
+                        hidden: !lambda |-
+                          return false;
+                    - label:  # background
+                        id: zone1_limit_label_shadow
+                        x: 0
+                        y: 39
+                        width: 62
+                        bg_opa: TRANSP
+                        text_font: SEGMENT_FONT_20
+                        text_align: RIGHT
+                        text: "888"
+                        text_color: !lambda return lv_color_hex(id(color_00));
+                        hidden: !lambda |-
+                          return false;
+                    - arc:
+                        id: zone1_arc
+                        styles: arc_value_style
+                        arc_color: !lambda return lv_color_hex(id(color_25));
+                        min_value: 1
+                        max_value: 100
+                        indicator:
+                          arc_color: !lambda return lv_color_hex(id(color_100));
+                          arc_width: 5
+                        value: !lambda |-
+                          return 0;
+
+        - obj:  # only for drawing the horizontal divider
+            id: probes_bar
+            x: 0
+            y: 86
+            width: 304
+            border_color: !lambda return lv_color_hex(id(color_75));
+            height: 20
+            border_width: 10
+            border_side:
+              - TOP
+            radius: 10
+            pad_all: 0
+            bg_color: 0
+        - label:
+            id: probes_title
+            y: 82
+            bg_opa: COVER
+            text_font: MONTSERRAT_BOLD_FONT_14
+            text_align: CENTER
+            text_color: !lambda return lv_color_hex(id(color_75));
+            x: 58
+            width: 188
+            text: "TEMPERATURE PROBES"
+
+        - obj:  # sensors
+            x: 0
+            y: 96
+            width: 304
+            height: 76
+            pad_all: 0
+            border_width: 0
+            radius: 0
+            bg_color: 0
+            scrollable: false
+            widgets:              
+              - obj: # sensor 1
+                  id: sensor1_obj
+                  x: 0
+                  y: 4
+                  styles: item_obj_style
+                  clickable: !lambda |-
+                    return false;
+                  widgets:
+                    - label:  # background
+                        id: sensor1_label_shadow
+                        x: 0
+                        y: 15
+                        width: 62
+                        text_font: SEGMENT_FONT_20
+                        text: "888"
+                        text_color: !lambda return lv_color_hex(id(color_00));
+                        text_align: RIGHT
+                        hidden: !lambda |-
+                          return false;
+                    - label:
+                        id: sensor1_label
+                        x: 0
+                        y: 15
+                        width: 62
+                        bg_opa: TRANSP
+                        text_align: RIGHT
+                        text_font: SEGMENT_FONT_20
+                        text_color: !lambda |-
+                          return lv_color_hex(id(color_100));
+                        text: !lambda |-
+                          return ("---");
+                        hidden: !lambda |-
+                          return false;
+                    - label:  # background large
+                        id: sensor1_label_large_shadow
+                        x: 0
+                        y: 25
+                        width: 69
+                        text_font: SEGMENT_FONT_25
+                        text: "888"
+                        text_color: !lambda return lv_color_hex(id(color_00));
+                        text_align: RIGHT
+                        hidden: !lambda |-
+                          return false;
+                    - label:
+                        id: sensor1_label_large
+                        x: 0
+                        y: 25
+                        width: 69
+                        bg_opa: TRANSP
+                        text_align: RIGHT
+                        text_font: SEGMENT_FONT_25
+                        text_color: !lambda |-
+                          return lv_color_hex(id(color_100));
+                        text: !lambda |-
+                          return ("---");
+                        hidden: !lambda |-
+                          return false;
+                    - label:  # alarm bell
+                        id: sensor1_limit_label_bell
+                        x: 60
+                        y: 37
+                        width: 15
+                        text_font: ICON_FONT_9
+                        text_align: LEFT
+                        text: "\U000F009A"
+                        text_color: !lambda |-
+                          return lv_color_hex(id(color_100));
+                        hidden: !lambda |-
+                          return false;
+                    - label:  # background
+                        id: sensor1_limit_label_shadow
+                        x: 0
+                        y: 39
+                        width: 62
+                        bg_opa: TRANSP
+                        text_font: SEGMENT_FONT_20
+                        text_align: RIGHT
+                        text: "888"
+                        text_color: !lambda return lv_color_hex(id(color_00));
+                        hidden: !lambda |-
+                          return false;
+                    - label:
+                        id: sensor1_limit_label
+                        x: 0
+                        y: 39
+                        width: 62
+                        bg_opa: TRANSP
+                        text_font: SEGMENT_FONT_20
+                        text_align: RIGHT
+                        text_color: !lambda return lv_color_hex(id(color_100));
+                        text: !lambda |-
+                          return (" ");
+                        hidden: !lambda |-
+                          return false;
+                    - arc:
+                        id: sensor1_arc
+                        styles: arc_value_style
+                        arc_color: !lambda return lv_color_hex(id(color_25));
+                        min_value: 1
+                        max_value: 100
+                        indicator:
+                          arc_color: !lambda return lv_color_hex(id(color_100));
+                          arc_width: 5
+                        value: !lambda |-
+                          return 0;
+
+  # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+    - id: settings_page
+      skip: true
+      pad_all: 0
+      widgets:
+        - obj:
+            x: 0
+            y: 0
+            width: 304
+            height: 172
+            bg_color: 0
+            bg_opa: COVER
+            pad_all: 0
+            border_width: 0
+            radius: 0
+            widgets:
+              - obj:  # only for drawing the horizontal divider
+                  id: settings_bar
+                  x: 0
+                  y: 0
+                  width: 304
+                  height: 20
+                  border_color: !lambda return lv_color_hex(id(color_75));
+                  border_width: 10
+                  border_side:
+                    - TOP
+                  radius: 10
+                  pad_all: 0
+                  bg_color: 0
+              - label:
+                  id: settings_title
+                  x: 113
+                  y: -4
+                  width: 78
+                  bg_opa: COVER
+                  text_font: MONTSERRAT_BOLD_FONT_14
+                  text_align: CENTER
+                  text_color: !lambda return lv_color_hex(id(color_75));
+                  text: "DETAILS"
+              - label:
+                  id: current_wifi_ip_label1
+                  x: 0
+                  y: 15
+                  width: 160
+                  text_align: LEFT
+                  text_color: !lambda return lv_color_hex(id(color_100));
+                  text_font: MONTSERRAT_18
+                  text: "IP Address"
+              - label:
+                  id: current_wifi_ip_label
+                  x: 170
+                  y: 15
+                  width: 130
+                  text_align: LEFT
+                  text_color: !lambda return lv_color_hex(id(color_100));
+                  text_font: MONTSERRAT_18
+                  text: !lambda |-
+                    return id(current_ip_address).c_str();
+              - label:
+                  id: current_version_label1
+                  x: 0
+                  y: 36
+                  width: 160
+                  text_align: LEFT
+                  text_color: !lambda return lv_color_hex(id(color_100));
+                  text_font: MONTSERRAT_18
+                  text: "Current version"
+              - label:
+                  id: current_version_label2
+                  x: 170
+                  y: 36
+                  width: 130
+                  text_align: LEFT
+                  text_color: !lambda return lv_color_hex(id(color_100));
+                  text_font: MONTSERRAT_18
+                  text: ${version}
+              - label:
+                  id: gas_weight_label1
+                  x: 0
+                  y: 57
+                  width: 160
+                  text_align: LEFT
+                  text_color: !lambda return lv_color_hex(id(color_100));
+                  text_font: MONTSERRAT_18
+                  text: "Gas bottle weight"
+              - label:
+                  id: gas_weight_label
+                  x: 170
+                  y: 57
+                  width: 130
+                  text_font: MONTSERRAT_18
+                  text_color: !lambda return lv_color_hex(id(color_100));
+                  text_align: LEFT
+                  text: !lambda |-
+                    int v = id(gas_weight);
+                    if( v < 0) {
+                      return " ";
+                    }
+                    int v2 = id(gas_percent);
+                    return (to_string(v) + " g (" + to_string(v2) + "%)").c_str();
+              - label:
+                  id: soc_warning_label1
+                  x: 0
+                  y: 78
+                  width: 160
+                  text_align: LEFT
+                  text_color: !lambda return lv_color_hex(id(color_100));
+                  text_font: MONTSERRAT_18
+                  text: "Warning SOC"
+              - label:
+                  id: soc_warning_label2
+                  x: 170
+                  y: 78
+                  width: 130
+                  text_align: LEFT
+                  text_color: !lambda return lv_color_hex(id(color_100));
+                  text_font: MONTSERRAT_18
+                  text: !lambda |-
+                    int v = id(min_soc_value_number).state;
+                    return (to_string(v) + "%").c_str();
+              - label:
+                  id: gas_warning_label1
+                  x: 0
+                  y: 101
+                  width: 160
+                  text_align: LEFT
+                  text_color: !lambda return lv_color_hex(id(color_100));
+                  text_font: MONTSERRAT_18
+                  text: "Warning Gas"
+              - label:
+                  id: gas_warning_label2
+                  x: 170
+                  y: 101
+                  width: 130
+                  text_align: LEFT
+                  text_color: !lambda return lv_color_hex(id(color_100));
+                  text_font: MONTSERRAT_18
+                  text: !lambda |-
+                    int v = id(min_gas_value_number).state;
+                    return (to_string(v) + "%").c_str();
+              - label:
+                  id: color_100_label
+                  x: 0
+                  y: 152
+                  width: 38
+                  height: 20
+                  bg_color: !lambda return lv_color_hex(id(color_100));
+                  text: " "
+              - label:
+                  id: color_75_label
+                  x: 38
+                  y: 152
+                  width: 38
+                  height: 20
+                  bg_color: !lambda return lv_color_hex(id(color_75));
+                  text: " "
+              - label:
+                  id: color_50_label
+                  x: 76
+                  y: 152
+                  width: 38
+                  height: 20
+                  bg_color: !lambda return lv_color_hex(id(color_50));
+                  text: " "
+              - label:
+                  id: color_25_label
+                  x: 114
+                  y: 152
+                  width: 38
+                  height: 20
+                  bg_color: !lambda return lv_color_hex(id(color_25));
+                  text: " "
+              - label:
+                  id: color_00_label
+                  x: 152
+                  y: 152
+                  width: 38
+                  height: 20
+                  bg_color: !lambda return lv_color_hex(id(color_00));
+                  text: " "
+              - label:
+                  id: color_good_label
+                  x: 190
+                  y: 152
+                  width: 38
+                  height: 20
+                  bg_color: !lambda return lv_color_hex(id(color_good));
+                  text: " "
+              - label:
+                  id: color_bad_label
+                  x: 228
+                  y: 152
+                  width: 38
+                  height: 20
+                  bg_color: !lambda return lv_color_hex(id(color_bad));
+                  text: " "
+              - label:
+                  id: color_light_label
+                  x: 266
+                  y: 152
+                  width: 38
+                  height: 20
+                  bg_color: !lambda return lv_color_hex(id(color_light));
+                  text: " "
+              - label:
+                  x: 0
+                  y: 0
+                  bg_opa: TRANSP
+                  width: 304
+                  height: 172
+                  text: " "
+                  clickable: True
+                  on_press:
+                    - script.execute: toggle_settings_page
+
+
+sensor:
+  - platform: adc
+    pin: GPIO0
+    name: "Battery SOC"
+    unit_of_measurement: "%"
+    state_class: measurement
+    device_class: battery
+    accuracy_decimals: 0
+    attenuation: 12db
+    samples: 16                # samples taken per update interval
+    filters:
+      - multiply: 3.0          # due to external voltage divider on adc input
+      - sliding_window_moving_average:
+          window_size: 15      # average over 15 values
+      - calibrate_linear:      # linearise voltage->SOC dependency
+          method: exact
+          datapoints:
+            - 3.00 ->   0.0    # <=3.00V = battery empty (0.0%)
+            - 3.36 ->   5.0
+            - 3.41 ->  10.0
+            - 3.48 ->  20.0
+            - 3.52 ->  30.0
+            - 3.56 ->  40.0
+            - 3.61 ->  50.0
+            - 3.70 ->  60.0
+            - 3.79 ->  70.0
+            - 3.89 ->  80.0
+            - 4.00 ->  90.0
+            - 4.05 -> 100.0    # >=4.05V = battery full (100.0%)
+      - clamp:
+          min_value: 0.0
+          max_value: 100.0
+    update_interval: 4s        # new value after 4s*15(=window size) = 60s!
+    on_value:
+      - lambda: id(battery_soc_value) = x;
+      - lvgl.widget.refresh: [battery_symbol, battery_symbol_fix]
+
+  - platform: wifi_signal
+    name: "WiFi Signal Strength ESP32"
+    update_interval: 10s
+  - platform: internal_temperature
+    name: "CPU Temperature ESP32"
+    update_interval: 10s
+    device_class: temperature
+    state_class: measurement
+    unit_of_measurement: "°C"
+    accuracy_decimals: 1
+
+  - platform: template
+    name: "Gasbuddy level in g"
+    id: g32_gas_weight
+    device_class: weight
+    state_class: measurement
+    unit_of_measurement: g
+    accuracy_decimals: 0
+    icon: "mdi:weight-gram"
+    on_value:
+      - globals.set:
+          id: gas_weight
+          value: !lambda |-
+            if (x >= 11000) {
+              return 11000;
+            }
+            return int(x);
+      - lvgl.widget.refresh: gas_weight_label
+
+  - platform: template
+    name: "Gasbuddy level in %"
+    id: g32_gas_percent
+    state_class: measurement
+    unit_of_measurement: "%"
+    icon: "mdi:gas-cylinder"
+    on_value:
+      - globals.set:
+          id: gas_percent
+          value: !lambda |-
+            if(x > 100) {
+              return 100;
+            }
+            return int(x);
+      - lvgl.widget.refresh: [gas_percent_bar]
+
+binary_sensor:
+  - platform: status
+    name: "Status ESP"
+
+script:
+  # Consolidated refresh scripts for performance optimization
+  - id: refresh_all_temps
+    then:
+      - lvgl.widget.refresh:
+          - zone1_label_large
+          - zone1_arc
+          - sensor1_label
+          - sensor1_label_large
+          - sensor1_arc
+          - sensor1_obj
+      - lvgl.widget.redraw:
+
+  - id: refresh_all_limits
+    then:
+      - lvgl.widget.refresh:
+          - zone1_label_shadow
+          - zone1_label_large
+          - zone1_label_large_shadow
+          - zone1_limit_label_shadow
+          - zone1_limit_label_bell
+          - sensor1_obj
+          - sensor1_label
+          - sensor1_label_shadow
+          - sensor1_label_large
+          - sensor1_label_large_shadow
+          - sensor1_limit_label
+          - sensor1_limit_label_shadow
+          - sensor1_limit_label_bell
+      - lvgl.widget.redraw:
+
+  - id: hide_boot_screen
+    then:
+      - if:
+          condition:
+            lambda: 'return !id(boot_screen_hidden);'
+          then:
+            - lambda: |-
+                id(apply_color_scheme).execute();
+            - lvgl.widget.hide: boot_screen
+            - lvgl.widget.show: [status_bar_right]
+            - lambda: |-
+                int idx = id(settings_color_scheme_idx_persistent);
+                std::string name = "white";
+                for (const auto& pair : id(color_schemes)) {
+                  if (static_cast<int>(pair.second[0]) == idx) {
+                    name = pair.first;
+                    break;
+                  }
+                }
+                id(color_scheme_select).publish_state(name);
+
+            # some things to refresh from persisted settings
+            - lvgl.widget.refresh: battery_symbol_obj
+
+            # for ettings_hide_inactive_sensors_persistent
+            - lvgl.widget.refresh: [zone1_label_large]
+            - lvgl.widget.refresh: [zone1_arc]
+            - lvgl.widget.refresh: [zone1_limit_label_bell]
+            - lvgl.widget.refresh: [sensor1_obj]
+            - lvgl.widget.refresh: [sensor1_label]
+            - lvgl.widget.refresh: [sensor1_label_large]
+            - lvgl.widget.refresh: [sensor1_limit_label]
+            - lvgl.widget.refresh: [sensor1_limit_label_bell]
+            - if:
+                condition:
+                  lambda: return id(settings_hide_soc_persistent);
+                then:
+                  - switch.turn_on: hide_soc_switch
+                else:
+                  - switch.turn_off: hide_soc_switch
+            - lambda: id(min_soc_value_number).publish_state(static_cast<float>(id(settings_min_soc_value_persistent)));
+            - lambda: id(min_gas_value_number).publish_state(static_cast<float>(id(settings_min_gas_value_persistent)));
+            - globals.set:
+                id: boot_screen_hidden
+                value: 'true'
+
+  - id: apply_color_scheme
+    mode: restart
+    then:
+      - lambda: |-
+          int target_idx = id(settings_color_scheme_idx_persistent);   // current selected index (0,1,2,3)
+          const std::vector<uint32_t>* selected_vec = nullptr;
+          std::string selected_name = "unknown";
+
+          // First: find the matching scheme by index (vec[0])
+          for (const auto& pair : id(color_schemes)) {
+            const auto& vec = pair.second;
+            if (vec.empty()) continue;
+
+            int scheme_idx = static_cast<int>(vec[0]);   // your 0,1,2,3
+            if (scheme_idx == target_idx) {
+              selected_vec = &vec;         // remember the correct vector
+              selected_name = pair.first;  // remember the name for logging
+              break;                       // found it → exit loop early
+            }
+          }
+
+          // If nothing found (corrupted data?), fall back to first scheme (index 0)
+          if (!selected_vec) {
+            ESP_LOGW("color_scheme", "Invalid index %d → falling back to default (white)", target_idx);
+            for (const auto& pair : id(color_schemes)) {
+              const auto& vec = pair.second;
+              if (vec.empty()) continue;
+              if (static_cast<int>(vec[0]) == 0) {
+                selected_vec = &vec;
+                selected_name = pair.first;
+                id(settings_color_scheme_idx_persistent) = 0;
+                break;
+              }
+            }
+          }
+
+          if (selected_vec && selected_vec->size() >= 8) {
+            id(color_100)   = (*selected_vec)[1];
+            id(color_75)    = (*selected_vec)[2];
+            id(color_50)    = (*selected_vec)[3];
+            id(color_25)    = (*selected_vec)[4];
+            id(color_00)    = (*selected_vec)[5];
+            id(color_good)  = (*selected_vec)[6];
+            id(color_bad)   = (*selected_vec)[7];
+            id(color_light) = (*selected_vec)[8];
+
+            if (${FORCE_SHADOW_COLOR_TO_BLACK}) {
+              id(color_00) = 0x000000;
+            }
+
+            // THIS SCHOULD BE THE MAGIC LINE: tells every LVGL object that styles changed
+            // BUT: DOES NOT WORK at the moment
+            lv_obj_report_style_change(NULL);
+
+            ESP_LOGI("color_scheme", "Applied scheme '%s' (index %d)", selected_name.c_str(), target_idx);
+          } else {
+            ESP_LOGE("color_scheme", "Failed to apply color scheme – data invalid");
+          }
+      - lambda: |-
+          lv_obj_set_style_arc_color(boot_spinner, lv_color_hex(id(color_100)), LV_PART_INDICATOR);
+
+      # Chunk 1: Status bar widgets
+      - lvgl.widget.refresh:
+          - battery_symbol
+          - battery_symbol_fix
+          - wifi_connect_label
+          - warning_on_label
+      - delay: 1ms
+
+      # Chunk 2: Gas widgets
+      - lvgl.widget.refresh:
+          - gas_level_obj
+          - gas_percent_bar
+      - delay: 1ms
+
+      # Chunk 3: Zone 1 & 2 widgets
+      - lvgl.widget.refresh:
+          - zones_bar
+          - zones_title
+          - zone1_obj
+          - zone1_label_shadow
+          - zone1_label_large_shadow
+          - zone1_label_large
+          - zone1_limit_label_bell
+          - zone1_limit_label_shadow
+          - zone1_arc
+      - delay: 1ms
+
+      # Chunk 5: Sensor 1 & 2 widgets
+      - lvgl.widget.refresh:
+          - probes_bar
+          - probes_title
+          - sensor1_obj
+          - sensor1_label_shadow
+          - sensor1_label
+          - sensor1_label_large_shadow
+          - sensor1_label_large
+          - sensor1_limit_label_bell
+          - sensor1_limit_label_shadow
+          - sensor1_limit_label
+          - sensor1_arc
+      - delay: 1ms
+
+      # Chunk: Settings page
+      - lvgl.widget.refresh:
+          - settings_bar
+          - settings_title
+          - current_wifi_ip_label1
+          - current_wifi_ip_label
+          - current_version_label1
+          - current_version_label2
+          - gas_weight_label1
+          - gas_weight_label
+          - soc_warning_label1
+          - soc_warning_label2
+          - gas_warning_label1
+          - gas_warning_label2
+          - color_100_label
+          - color_75_label
+          - color_50_label
+          - color_25_label
+          - color_00_label
+          - color_good_label
+          - color_bad_label
+          - color_light_label
+      - delay: 1ms
+
+      - lambda: |-
+          // Update nested parts
+
+          lv_obj_set_style_arc_color(zone1_arc, lv_color_hex(id(color_100)), LV_PART_INDICATOR);
+          lv_obj_set_style_arc_color(sensor1_arc, lv_color_hex(id(color_100)), LV_PART_INDICATOR);
+
+          lv_obj_set_style_bg_color(sensor_limit_slider, lv_color_hex(id(color_50)), LV_PART_INDICATOR);
+          lv_obj_set_style_bg_color(sensor_limit_slider, lv_color_hex(id(color_100)), LV_PART_KNOB);
+
+  - id: toggle_settings_page
+    then:
+      - if:
+          condition:
+            or:
+              - lambda: 'return lv_scr_act() == id(arcs_page)->obj;'
+          then:
+            - lvgl.page.show: settings_page
+          else:
+            - lvgl.page.show: arcs_page
