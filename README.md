@@ -218,13 +218,9 @@ https://sagdusmir.github.io/ESP-bin-patch/?lock=1&chip=ESP32-C6&flash=erase&pad=
 
 ## Troubleshooting
 
-1. Starting with esphome 2026.4.0 the display driver had to be changed and the output on the display might look garbled at first. Disconnecting and reconnecting power should fix this issue.
-   
-2. During validation of the yaml file, you might see something like `[max_connections] is an invalid option for [esp32_ble]`. The "max_connections" option has been moved from "esp32_ble_tracker:" to "esp32_ble:". Both variants are included in the YAML and you need to switch to the other variant by adding / removing a comment (#). Do not mess up the indentation. This is caused by a breaking change in esphome.
+1. If compiling and flashing the ESP32 succeeds, but the screen is looking distorted afterwards, skimply turn the power off and on agaoin. Pressing the BOOT button in the device is not sufficient.
 
-3. If compiling and flashing the ESP32 succeeds, but the screen is looking distorted (the left portion is partially readable while the right portion shows mostly pixel noise"), simply look at the "dimensions" in the "display" section and swap the values for "width:" and "height:". This is caused by a breaking change in esphome.
-
-4. If you get A LOT of strange syntax errors, try to clean up the configured build folder via
+2. If you get A LOT of strange syntax errors, try to clean up the configured build folder via
    ```bash
    esphome clean gasbuddy-display.yaml
    ```
