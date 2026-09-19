@@ -1,10 +1,10 @@
 # G32 Connected Grill Monitor and Display MINI
 
 
-[![GitHub release](https://img.shields.io/github/v/release/sagdusmir/G32-Grill-Display-320x172-BT?style=flat-square&logo=github&color=blue)](https://github.com/sagdusmir/G32-Grill-Display-320x172-BT/releases/latest)
-[![GitHub Release Date](https://img.shields.io/github/release-date/sagdusmir/G32-Grill-Display-320x172-BT?style=flat-square&logo=github&color=blue)](https://github.com/sagdusmir/G32-Grill-Display-320x172-BT/releases)
-[![GitHub commit activity (branch)](https://img.shields.io/github/commit-activity/t/sagdusmir/G32-Grill-Display-320x172-BT/main?style=flat-square&logo=github&color=blue)](https://github.com/sagdusmir/G32-Grill-Display-320x172-BT/commits/main/)
-![GitHub license](https://img.shields.io/github/license/sagdusmir/G32-Grill-Display-320x172-BT?style=flat-square&logo=gnu&color=green)
+[![GitHub release](https://img.shields.io/github/v/release/sagdusmir/GasBuddy-Display-320x172?style=flat-square&logo=github&color=blue)](https://github.com/sagdusmir/GasBuddy-Display-320x172/releases/latest)
+[![GitHub Release Date](https://img.shields.io/github/release-date/sagdusmir/GasBuddy-Display-320x172?style=flat-square&logo=github&color=blue)](https://github.com/sagdusmir/GasBuddy-Display-320x172/releases)
+[![GitHub commit activity (branch)](https://img.shields.io/github/commit-activity/t/sagdusmir/GasBuddy-Display-320x172/main?style=flat-square&logo=github&color=blue)](https://github.com/sagdusmir/GasBuddy-Display-320x172/commits/main/)
+![GitHub license](https://img.shields.io/github/license/sagdusmir/GasBuddy-Display-320x172?style=flat-square&logo=gnu&color=green)
 [![Grill make](https://img.shields.io/badge/grill-OW_G32_Connected-critical)](https://www.grillsportverein.de/forum/threads/otto-wilde-g32-smarthome.369079/page-999)
 [![HA support](https://img.shields.io/badge/Home_Assistant-recommended-informational?style=flat-square&logo=home-assistant&logoColor=white&color=orange)](https://home-assistant.io)
 
@@ -165,18 +165,53 @@ on top and install the ESP32 Dev Board to close everything up. Use a bit of Kapt
 
 ## Uploading the software to the ESP
 
+### Prebuilt firmware
+
+Each [GitHub Release](https://github.com/sagdusmir/GasBuddy-Display-320x172/releases/latest) includes compiled images with placeholder Wi-Fi, OTA, and Home Assistant values. The extra `.espbinpatch` suffix is the same firmware as a `.bin` — patch those secrets, then flash. Do not flash the download as-is.
+
+| File | When to use |
+|---|---|
+| `*.factory.bin.espbinpatch` | First flash on a new or empty board (erases everything) |
+| `*.ota.bin.espbinpatch` | Later updates if the device already works (keeps Wi-Fi and other saved settings) |
+
+1. Download the matching file from the latest release.
+2. Open [ESP Bin Patch](https://sagdusmir.github.io/ESP-bin-patch/) in **Chrome or Edge**.
+3. Choose the downloaded file on that page (it accepts `.espbinpatch`). GitHub Release download links cannot be loaded in the browser (CORS).
+4. Fill in the replacements. The new value must be the same length or shorter (leftover bytes are padded with `0x00`):
+
+   | What | Old (already in the image) | Mode |
+   |---|---|---|
+   | Wi-Fi SSID | `ESPBINPATCH_WIFI_SSID___________` | utf-8 |
+   | Wi-Fi password | `ESPBINPATCH_WIFI_PASSWORD______________________________________` | utf-8 |
+   | OTA password | `ESPBINPATCH_OTA_PASSWORD________________________________________` | utf-8 |
+   | Home Assistant API key | `ESPBINPATCH_API_ENCRYPTION_KEY__` | auto |
+
+   For the API key, paste your Home Assistant / ESPHome `api.encryption.key` (the Base64 value) as **New**.
+5. Click **Patch firmware**, connect the board via USB, then **Install patched firmware**.
+   - Factory file: choose **Erase everything**.
+   - OTA file: choose **Keep saved settings**.
+6. You might need to reset the device after flashing (RST button).
+
+A form with the Old values already filled in (still pick the file in step 3):
+
+```
+https://sagdusmir.github.io/ESP-bin-patch/?lock=1&chip=ESP32-C6&flash=erase&pad=00&patch=0&old=ESPBINPATCH_WIFI_SSID___________&new=YOUR_WIFI_SSID&enc=utf-8&old=ESPBINPATCH_WIFI_PASSWORD______________________________________&new=YOUR_WIFI_PASSWORD&enc=utf-8&old=ESPBINPATCH_OTA_PASSWORD________________________________________&new=YOUR_OTA_PASSWORD&enc=utf-8&old=ESPBINPATCH_API_ENCRYPTION_KEY__&new=YOUR_HA_API_KEY&enc=auto
+```
+
+### Compile from source
+
 1. Install ESPHome CLI
    ```bash
    pip install esphome
    ```
 2. Clone this repository and change directory into that folder
    ```bash
-   git clone https://github.com/sagdusmir/G32-Grill-Display-320x172-BT.git && cd G32-Grill-Display-320x172-BT
+   git clone https://github.com/sagdusmir/GasBuddy-Display-320x172.git && cd GasBuddy-Display-320x172
    ```
 3. Connect the ESP32-C6 1.47 Inch Display Development Board via USB
 4. Compile and flash the software
    ```bash
-   esphome run g32-display-mini.yaml
+   esphome run gasbuddy-display.yaml
    ```
    You may be asked how the connection should be established.
 5. You might need to reset the device after flashing to get the display to work (push the RST button).
@@ -191,7 +226,7 @@ on top and install the ESP32 Dev Board to close everything up. Use a bit of Kapt
 
 4. If you get A LOT of strange syntax errors, try to clean up the configured build folder via
    ```bash
-   esphome clean g32-display-mini.yaml
+   esphome clean gasbuddy-display.yaml
    ```
 
 

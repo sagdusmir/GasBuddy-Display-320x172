@@ -457,14 +457,14 @@ number:
       - lvgl.widget.refresh: [warning_on_label, battery_symbol, soc_warning_label2]
 
 font:
-  - file: 'https://raw.githubusercontent.com/sagdusmir/G32-Grill-Display-480x320-BTpref/main/fonts/MaterialDesign-Webfont/materialdesignicons-webfont.ttf'
+  - file: 'https://raw.githubusercontent.com/sagdusmir/GasBuddy-Display-320x172/main/fonts/MaterialDesign-Webfont/materialdesignicons-webfont.ttf'
     # file: 'fonts/MaterialDesign-Webfont/materialdesignicons-webfont.ttf'
     id: ICON_FONT_30
     size: 30
     glyphs:
       - "\U000F15CB" # mdi-numeric-positive-1
       - "\U000F1052" # mdi-numeric-negative-1
-  - file: 'https://raw.githubusercontent.com/sagdusmir/G32-Grill-Display-480x320-BTpref/main/fonts/MaterialDesign-Webfont/materialdesignicons-webfont.ttf'
+  - file: 'https://raw.githubusercontent.com/sagdusmir/GasBuddy-Display-320x172/main/fonts/MaterialDesign-Webfont/materialdesignicons-webfont.ttf'
     # file: 'fonts/MaterialDesign-Webfont/materialdesignicons-webfont.ttf'
     id: ICON_FONT_20
     size: 20
@@ -473,20 +473,20 @@ font:
       - "\U000F12A2" # mdi-battery-medium
       - "\U000F12A1" # mdi-battery-low
       - "\U000F008E" # mdi-battery-outline
-  - file: 'https://raw.githubusercontent.com/sagdusmir/G32-Grill-Display-480x320-BTpref/main/fonts/MaterialDesign-Webfont/materialdesignicons-webfont.ttf'
+  - file: 'https://raw.githubusercontent.com/sagdusmir/GasBuddy-Display-320x172/main/fonts/MaterialDesign-Webfont/materialdesignicons-webfont.ttf'
     # file: 'fonts/MaterialDesign-Webfont/materialdesignicons-webfont.ttf'
     id: ICON_FONT_18
     size: 18
     glyphs:
       - "\U000F05A9" # mdi-wifi
       - "\U000F00AF" # mdi-bluetooth
-  - file: 'https://raw.githubusercontent.com/sagdusmir/G32-Grill-Display-480x320-BTpref/main/fonts/MaterialDesign-Webfont/materialdesignicons-webfont.ttf'
+  - file: 'https://raw.githubusercontent.com/sagdusmir/GasBuddy-Display-320x172/main/fonts/MaterialDesign-Webfont/materialdesignicons-webfont.ttf'
     # file: 'fonts/MaterialDesign-Webfont/materialdesignicons-webfont.ttf'
     id: ICON_FONT_9
     size: 9
     glyphs:
       - "\U000F009A" # mdi-bell
-  - file: 'https://raw.githubusercontent.com/sagdusmir/G32-Grill-Display-480x320-BTpref/main/fonts/DESG07/DSEG7ClassicMini-Bold.ttf'
+  - file: 'https://raw.githubusercontent.com/sagdusmir/GasBuddy-Display-320x172/main/fonts/DESG07/DSEG7ClassicMini-Bold.ttf'
     # file: 'fonts/DESG07/DSEG7ClassicMini-Bold.ttf'
     id: SEGMENT_FONT_25
     size: 25
@@ -503,7 +503,7 @@ font:
       - "9"
       - "-"
       - " "
-  - file: 'https://raw.githubusercontent.com/sagdusmir/G32-Grill-Display-480x320-BTpref/main/fonts/DESG07/DSEG7ClassicMini-Bold.ttf'
+  - file: 'https://raw.githubusercontent.com/sagdusmir/GasBuddy-Display-320x172/main/fonts/DESG07/DSEG7ClassicMini-Bold.ttf'
     # file: 'fonts/DESG07/DSEG7ClassicMini-Bold.ttf'
     id: SEGMENT_FONT_20
     size: 20
@@ -520,7 +520,7 @@ font:
       - "9"
       - "-"
       - " "
-  - file: 'https://raw.githubusercontent.com/sagdusmir/G32-Grill-Display-480x320-BTpref/main/fonts/Montserrat/Montserrat-Bold.ttf'
+  - file: 'https://raw.githubusercontent.com/sagdusmir/GasBuddy-Display-320x172/main/fonts/Montserrat/Montserrat-Bold.ttf'
     # file: 'fonts/Montserrat/Montserrat-Bold.ttf'
     id: MONTSERRAT_BOLD_FONT_18
     size: 18
@@ -565,7 +565,7 @@ font:
       - "x"
       - "y"
       - "z"
-  - file: 'https://raw.githubusercontent.com/sagdusmir/G32-Grill-Display-480x320-BTpref/main/fonts/Montserrat/Montserrat-Bold.ttf'
+  - file: 'https://raw.githubusercontent.com/sagdusmir/GasBuddy-Display-320x172/main/fonts/Montserrat/Montserrat-Bold.ttf'
     # file: 'fonts/Montserrat/Montserrat-Bold.ttf'
     id: MONTSERRAT_BOLD_FONT_14
     size: 14
