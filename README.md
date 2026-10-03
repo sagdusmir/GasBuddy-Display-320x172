@@ -11,7 +11,7 @@
 This repository is a stripped down version of https://github.com/sagdusmir/G32-Grill-Display-480x320-BTpref , but offers a better experience regarding power management.
 
 
-Focus: **mobile, cloud-independent replacement** for the official Otto Wilde app / Grill Buddy — no cloud login, no Otto Wilde servers. Direct BLE connection to the grill (tested with firmware **v1.4.5**; older "v13" not compatible).
+Focus: **mobile, cloud-independent** GasBuddy display — no cloud login, no Otto Wilde servers. Gas weight is read from the scale over UART.
 
 <img alt="Teaser Gauges" src="https://github.com/user-attachments/assets/7477aff2-aa70-4a29-8a00-d886d874ef73" height="150">
 <img alt="Teaser Temperature Alarm" src="https://github.com/user-attachments/assets/cb68fa71-7baf-4253-ba44-360a564703f2" height="150" />
@@ -41,30 +41,24 @@ Bare device during testing.<br>
 
 ### Implemented functionality
 
-- **Automatic detection** of a near by G32 Connected
-- Real-time temperatures for up to **4 grill zones** + **4 external probes**
 - **Gas level** monitoring (if GasBuddy is installed)
-- **Alarms** — visual indicator + optional buzzer for temperature limits and other alarms
+- **Alarms** — visual indicator for gas level and battery SOC
 - Touchscreen configuration
-  - tap gauges to configure a temperature alarm (if the feature has not been disabled)
   - tap the rightmost status bar to see some other details
 - Multiple **color schemes** (predefined + easy to add your own)
-- **Connection & status icons** (BLE, WiFi, battery SOC)
+- **Connection & status icons** (WiFi, battery SOC)
 - **Optional battery monitoring** the state of charge (SOC) of a connected battery can be displayed
-- **Optional MEATER® integration** with **automatic detection** shows tip temperatures & battery SOC instead of G32 probes when connected. There is an alert if temperature specs are exceeded.
 - **Optional Home Assistant** connectivity that exposes most of the measurements and allows confguring some settings of the device that can not be controlled using the UI on the device itself (min SOC level, min gas bottle level, color scheme, hide SOC, hide gas bottle level). At the moment HA will list about 38 entities for this device.
 
 See [changelog.md](changelog.md).
 
 ### What is missing?
-* **Meater 2 plus (aka PRO) support:** Meater 2 plus units are currently not supported
 * **Gas Buddy:** calibration of a new gas bottle
 * **G32 light:** setting the brightness level for turning on the light in the lid
 
 ### Limitations
 * Everything that was mentioned above under [What is missing?](#what-is-missing)
 * Volume level of the optional buzzer is a bit low.
-* Meater probes can only connect to a single device at a time. However, this does not prevent using a Meater Block.
 
 
 ## Hardware

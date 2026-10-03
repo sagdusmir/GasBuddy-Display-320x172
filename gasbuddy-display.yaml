@@ -6,7 +6,7 @@ substitutions:
   # Name of the ESPHome device (modify if you like, avoid special characters)
   name: gasbuddy-display
   device_description: "Monitor an OW GasBuddy Scale"
-  version: "GasBuddyDisplay 0.0.1-alpha"
+  version: "0.0.1-alpha"
 
   # either pull values from secrets.yaml
   # or have it directly in this file
@@ -60,9 +60,6 @@ substitutions:
   SETTINGS_HIDE_SOC: "false"
   SETTINGS_MIN_SOC_VALUE: "25"
 
-  # interval for alarm sound
-  Beeper_interval: "5s"
-
   # sounds (in RTTTL syntax):
   Wifi_Connect_Sound: "dadi:d=16,o=6,b=140:d6,32p,e6"
   Wifi_Disconnect_Sound: "siren:d=8,o=5,b=100:d,e,d,e,d,e,d,e"
@@ -114,8 +111,6 @@ esp32:
       CONFIG_SPIRAM_FETCH_INSTRUCTIONS: "y"
       CONFIG_SPIRAM_RODATA: "y"
       CONFIG_ESP_WIFI_TASK_CORE_ID: "0"
-      CONFIG_BT_BTC_TASK_CORE_ID: "0"
-      CONFIG_BT_NIMBLE_PINNED_TO_CORE: "0"
       CONFIG_TCPIP_TASK_CORE_ID: "0"
       CONFIG_ESP_TIMER_TASK_CORE_ID: "0"
       CONFIG_ESP_MAIN_TASK_AFFINITY_CPU1: "y"
@@ -277,17 +272,23 @@ rtttl:
   output: rtttl_out
   gain: 80%
 
+# GasBuddy scale (STM32 on the 4-pin lead: GND, +5V, RX, TX).
+# Same poll as the grill: 9600 8N1, command AA 14 C3 3C.
+# Parsed field is reply bytes [2:3], big-endian. It is probably the 
+# raw count only, because the scale is uncalibrated.
+# Logger stays on USB Serial/JTAG, so the header UART is free.
+# GPIO16 = ESP_TXD -> scale RX, GPIO17 = ESP_RXD <- scale TX.
+# Grill GPIO2/GPIO15 are the LCD on this board, so they are not used here.
+uart:
+  id: uart_gasbuddy
+  tx_pin: GPIO16
+  rx_pin: GPIO17
+  baud_rate: 9600
+
 interval:
   - interval: 10s
     then:
       - lvgl.widget.refresh: warning_on_label
-  # - interval: ${Beeper_interval}
-  #   then:
-  #     - lambda: |-
-  #         if( ((id(zone1_limit_value) > 0) && (id(zone1_value) >= id(zone1_limit_value)))
-  #         ) {
-  #           id(my_rtttl).play("${Zone_Limit_Alarm_Sound}");
-  #         }
   - interval: 1s
     then:
       - if:
@@ -307,6 +308,35 @@ interval:
           then:
             - script.execute: hide_boot_screen
 
+  - interval: 5s
+    then:
+      - lambda: |-
+          uint8_t discard;
+          while (id(uart_gasbuddy).available()) {
+            id(uart_gasbuddy).read_byte(&discard);
+          }
+      - uart.write:
+          id: uart_gasbuddy
+          data: [0xAA, 0x14, 0xC3, 0x3C]
+      - delay: 100ms
+      - lambda: |-
+          if (id(uart_gasbuddy).available() < 4) {
+            ESP_LOGE("uart_gasbuddy", "No Data");
+            return;
+          }
+          uint8_t buf[64];
+          int got = 0;
+          while (id(uart_gasbuddy).available() && got < (int) sizeof(buf)) {
+            id(uart_gasbuddy).read_byte(&buf[got++]);
+          }
+          if (got < 4) {
+            return;
+          }
+          // reply[2:3], big-endian. Kept on the device only.
+          const uint16_t value = (uint16_t(buf[2]) << 8) | buf[3];
+          id(uart_gas_value) = value;
+          ESP_LOGI("uart_gasbuddy", "Parsed value: %u", value);
+
 globals:
   - id: wifi_connected
     type: bool
@@ -315,6 +345,10 @@ globals:
     type: bool
     initial_value: 'false'
   - id: gas_weight
+    type: int32_t
+    initial_value: '-1'
+  # Raw GasBuddy UART reading (reply bytes [2:3]). Not published.
+  - id: uart_gas_value
     type: int32_t
     initial_value: '-1'
   - id: gas_percent
@@ -457,14 +491,14 @@ number:
       - lvgl.widget.refresh: [warning_on_label, battery_symbol, soc_warning_label2]
 
 font:
-  - file: 'https://raw.githubusercontent.com/sagdusmir/GasBuddy-Display-320x172/main/fonts/MaterialDesign-Webfont/materialdesignicons-webfont.ttf'
+  - file: 'https://raw.githubusercontent.com/sagdusmir/G32-Grill-Display-320x172-BT/main/fonts/MaterialDesign-Webfont/materialdesignicons-webfont.ttf'
     # file: 'fonts/MaterialDesign-Webfont/materialdesignicons-webfont.ttf'
     id: ICON_FONT_30
     size: 30
     glyphs:
       - "\U000F15CB" # mdi-numeric-positive-1
       - "\U000F1052" # mdi-numeric-negative-1
-  - file: 'https://raw.githubusercontent.com/sagdusmir/GasBuddy-Display-320x172/main/fonts/MaterialDesign-Webfont/materialdesignicons-webfont.ttf'
+  - file: 'https://raw.githubusercontent.com/sagdusmir/G32-Grill-Display-320x172-BT/main/fonts/MaterialDesign-Webfont/materialdesignicons-webfont.ttf'
     # file: 'fonts/MaterialDesign-Webfont/materialdesignicons-webfont.ttf'
     id: ICON_FONT_20
     size: 20
@@ -473,54 +507,7 @@ font:
       - "\U000F12A2" # mdi-battery-medium
       - "\U000F12A1" # mdi-battery-low
       - "\U000F008E" # mdi-battery-outline
-  - file: 'https://raw.githubusercontent.com/sagdusmir/GasBuddy-Display-320x172/main/fonts/MaterialDesign-Webfont/materialdesignicons-webfont.ttf'
-    # file: 'fonts/MaterialDesign-Webfont/materialdesignicons-webfont.ttf'
-    id: ICON_FONT_18
-    size: 18
-    glyphs:
-      - "\U000F05A9" # mdi-wifi
-      - "\U000F00AF" # mdi-bluetooth
-  - file: 'https://raw.githubusercontent.com/sagdusmir/GasBuddy-Display-320x172/main/fonts/MaterialDesign-Webfont/materialdesignicons-webfont.ttf'
-    # file: 'fonts/MaterialDesign-Webfont/materialdesignicons-webfont.ttf'
-    id: ICON_FONT_9
-    size: 9
-    glyphs:
-      - "\U000F009A" # mdi-bell
-  - file: 'https://raw.githubusercontent.com/sagdusmir/GasBuddy-Display-320x172/main/fonts/DESG07/DSEG7ClassicMini-Bold.ttf'
-    # file: 'fonts/DESG07/DSEG7ClassicMini-Bold.ttf'
-    id: SEGMENT_FONT_25
-    size: 25
-    glyphs:
-      - "0"
-      - "1"
-      - "2"
-      - "3"
-      - "4"
-      - "5"
-      - "6"
-      - "7"
-      - "8"
-      - "9"
-      - "-"
-      - " "
-  - file: 'https://raw.githubusercontent.com/sagdusmir/GasBuddy-Display-320x172/main/fonts/DESG07/DSEG7ClassicMini-Bold.ttf'
-    # file: 'fonts/DESG07/DSEG7ClassicMini-Bold.ttf'
-    id: SEGMENT_FONT_20
-    size: 20
-    glyphs:
-      - "0"
-      - "1"
-      - "2"
-      - "3"
-      - "4"
-      - "5"
-      - "6"
-      - "7"
-      - "8"
-      - "9"
-      - "-"
-      - " "
-  - file: 'https://raw.githubusercontent.com/sagdusmir/GasBuddy-Display-320x172/main/fonts/Montserrat/Montserrat-Bold.ttf'
+  - file: 'https://raw.githubusercontent.com/sagdusmir/G32-Grill-Display-320x172-BT/main/fonts/Montserrat/Montserrat-Bold.ttf'
     # file: 'fonts/Montserrat/Montserrat-Bold.ttf'
     id: MONTSERRAT_BOLD_FONT_18
     size: 18
@@ -565,29 +552,26 @@ font:
       - "x"
       - "y"
       - "z"
-  - file: 'https://raw.githubusercontent.com/sagdusmir/GasBuddy-Display-320x172/main/fonts/Montserrat/Montserrat-Bold.ttf'
+  - file: 'https://raw.githubusercontent.com/sagdusmir/G32-Grill-Display-320x172-BT/main/fonts/Montserrat/Montserrat-Bold.ttf'
     # file: 'fonts/Montserrat/Montserrat-Bold.ttf'
     id: MONTSERRAT_BOLD_FONT_14
     size: 14
     glyphs:
-      - "Z"
-      - "O"
-      - "N"
-      - "E"
+      - "G"
+      - "A"
       - "S"
-      - "R"
+      - "B"
+      - "U"
+      - "D"
+      - "Y"
+      - "E"
       - "T"
       - "M"
       - "P"
-      - "A"
-      - "U"
-      - "B"
       - "I"
       - "W"
       - "C"
-      - "D"
       - "L"
-      - "G"
       - "1"
       - "2"
       - "3"
@@ -644,34 +628,6 @@ lvgl:
       items:
         bg_color: ${COLOR_100}
         text_color: ${COLOR_25}
-
-  style_definitions:
-    - id: arc_value_style
-      x: 1
-      y: 1
-      width: 74
-      height: 74
-      arc_opa: COVER
-      arc_rounded: false
-      arc_width: 5
-    - id: arc_limit_style
-      x: 4
-      y: 4
-      width: 68
-      height: 68
-      arc_opa: 100%
-      arc_rounded: false
-      arc_width: 2
-      arc_color: 0
-    - id: item_obj_style
-      width: 76
-      height: 76
-      bg_color: 0
-      pad_all: 0
-      radius: 0
-      outline_width: 0
-      border_width: 0
-      outline_pad: 0
 
   # send display to idle state after timeout
   on_idle:
@@ -741,7 +697,7 @@ lvgl:
                 widgets:
                   - label:
                       id: battery_symbol
-                      x: 0
+                      x: -1
                       y: 0
                       text_font: ICON_FONT_20
                       text_align: LEFT
@@ -761,8 +717,8 @@ lvgl:
                   - line:
                       id: battery_symbol_fix  # glyph scaling artefact
                       points:
-                        - 8, 6
-                        - 12, 6
+                        - 7, 6
+                        - 11, 6
                       line_width: 1
                       line_rounded: false
                       line_color: !lambda |-
@@ -777,7 +733,7 @@ lvgl:
             - label: # symbol for successfull WIFI connection
                 id: wifi_connect_label
                 x: 3
-                y: 47
+                y: 33
                 text_font: MONTSERRAT_10
                 text_align: LEFT
                 width: 13
@@ -790,7 +746,7 @@ lvgl:
             - label:
                 id: warning_on_label
                 x: 4
-                y: 61
+                y: 47
                 text_font: MONTSERRAT_10
                 text_color: !lambda |-
                   if (millis() - id(boot_start_time) < 15000) {
@@ -809,10 +765,10 @@ lvgl:
                 text: "\uF071"
             - obj:
                 id: gas_level_obj
-                x: 0
-                y: 81
-                width: 16
-                height: 91
+                x: 1
+                y: 61
+                width: 15
+                height: 106
                 pad_all: 0
                 bg_color: 0
                 border_width: 0
@@ -824,7 +780,7 @@ lvgl:
                       id: gas_percent_bar
                       x: 5
                       y: 0
-                      height: 80
+                      height: 100
                       width: 8
                       radius: 0
                       min_value: 1
@@ -850,7 +806,7 @@ lvgl:
                       x: 4
                       y: 0
                       width: 10
-                      height: 9
+                      height: 11
                       bg_opa: TRANSP                      
                       border_width: 1
                       radius: 0
@@ -858,9 +814,9 @@ lvgl:
                       text: " "
                   - label:  # 2/10
                       x: 4
-                      y: 8
+                      y: 10
                       width: 10
-                      height: 9
+                      height: 11
                       bg_opa: TRANSP                      
                       border_width: 1
                       radius: 0
@@ -868,9 +824,9 @@ lvgl:
                       text: " "
                   - label:  # 3/10
                       x: 4
-                      y: 16
+                      y: 20
                       width: 10
-                      height: 9
+                      height: 11
                       bg_opa: TRANSP                      
                       border_width: 1
                       radius: 0
@@ -878,9 +834,9 @@ lvgl:
                       text: " "
                   - label:  # 4/10
                       x: 4
-                      y: 24
+                      y: 30
                       width: 10
-                      height: 9
+                      height: 11
                       bg_opa: TRANSP                      
                       border_width: 1
                       radius: 0
@@ -888,9 +844,9 @@ lvgl:
                       text: " "
                   - label:  # 5/10
                       x: 4
-                      y: 32
+                      y: 40
                       width: 10
-                      height: 9
+                      height: 11
                       bg_opa: TRANSP                      
                       border_width: 1
                       radius: 0
@@ -898,9 +854,9 @@ lvgl:
                       text: " "
                   - label:  # 6/10
                       x: 4
-                      y: 40
+                      y: 50
                       width: 10
-                      height: 9
+                      height: 11
                       bg_opa: TRANSP                      
                       border_width: 1
                       radius: 0
@@ -908,9 +864,9 @@ lvgl:
                       text: " "
                   - label:  # 7/10
                       x: 4
-                      y: 48
+                      y: 60
                       width: 10
-                      height: 9
+                      height: 11
                       bg_opa: TRANSP                      
                       border_width: 1
                       radius: 0
@@ -918,9 +874,9 @@ lvgl:
                       text: " "
                   - label:  # 8/10
                       x: 4
-                      y: 56
+                      y: 70
                       width: 10
-                      height: 9
+                      height: 11
                       bg_opa: TRANSP                      
                       border_width: 1
                       radius: 0
@@ -928,9 +884,9 @@ lvgl:
                       text: " "
                   - label:  # 9/10
                       x: 4
-                      y: 64
+                      y: 80
                       width: 10
-                      height: 9
+                      height: 11
                       bg_opa: TRANSP                      
                       border_width: 1
                       radius: 0
@@ -938,9 +894,9 @@ lvgl:
                       text: " "
                   - label:  # 10/10
                       x: 4
-                      y: 72
+                      y: 90
                       width: 10
-                      height: 9
+                      height: 11
                       bg_opa: TRANSP                      
                       border_width: 1
                       radius: 0
@@ -967,7 +923,7 @@ lvgl:
       pad_all: 0
       widgets:
         - obj:  # only for drawing the horizontal divider
-            id: zones_bar
+            id: scale_bar
             x: 0
             y: 0
             width: 304
@@ -980,246 +936,15 @@ lvgl:
             pad_all: 0
             bg_color: 0
         - label:
-            id: zones_title
-            x: 121
+            id: scale_title
+            x: 99
             y: -4
-            width: 62
+            width: 106
             bg_opa: COVER
             text_font: MONTSERRAT_BOLD_FONT_14
             text_align: CENTER
             text_color: !lambda return lv_color_hex(id(color_75));
-            text: "ZONES"
-
-        - obj:  # zones
-            x: 0
-            y: 10
-            width: 304
-            height: 76
-            scrollable: false
-            pad_all: 0
-            border_width: 0
-            radius: 0
-            bg_color: 0
-            widgets:
-              - obj:  # zone 1
-                  id: zone1_obj
-                  x: 0
-                  y: 4
-                  styles: item_obj_style
-                  clickable: !lambda |-
-                    return true;
-                  widgets:
-                    - label:  # background
-                        id: zone1_label_shadow
-                        x: 0
-                        y: 15
-                        width: 62
-                        text_font: SEGMENT_FONT_20
-                        text: "888"
-                        text_color: !lambda return lv_color_hex(id(color_00));
-                        text_align: RIGHT
-                        hidden: !lambda |-
-                          return false;
-                    - label:  # background large
-                        id: zone1_label_large_shadow
-                        x: 0
-                        y: 25
-                        width: 69
-                        text_font: SEGMENT_FONT_25
-                        text: "888"
-                        text_color: !lambda return lv_color_hex(id(color_00));
-                        text_align: RIGHT
-                        hidden: !lambda |-
-                          return false;
-                    - label:
-                        id: zone1_label_large
-                        x: 0
-                        y: 25
-                        width: 69
-                        bg_opa: TRANSP
-                        text_align: RIGHT
-                        text_font: SEGMENT_FONT_25
-                        text: !lambda |-
-                          return ("---");
-                        hidden: !lambda |-
-                          return false;
-                    - label:  # alarm bell
-                        id: zone1_limit_label_bell
-                        x: 60
-                        y: 37
-                        width: 15
-                        text_font: ICON_FONT_9
-                        text_align: LEFT
-                        text: "\U000F009A"
-                        text_color: !lambda |-
-                          return lv_color_hex(id(color_100));
-                        hidden: !lambda |-
-                          return false;
-                    - label:  # background
-                        id: zone1_limit_label_shadow
-                        x: 0
-                        y: 39
-                        width: 62
-                        bg_opa: TRANSP
-                        text_font: SEGMENT_FONT_20
-                        text_align: RIGHT
-                        text: "888"
-                        text_color: !lambda return lv_color_hex(id(color_00));
-                        hidden: !lambda |-
-                          return false;
-                    - arc:
-                        id: zone1_arc
-                        styles: arc_value_style
-                        arc_color: !lambda return lv_color_hex(id(color_25));
-                        min_value: 1
-                        max_value: 100
-                        indicator:
-                          arc_color: !lambda return lv_color_hex(id(color_100));
-                          arc_width: 5
-                        value: !lambda |-
-                          return 0;
-
-        - obj:  # only for drawing the horizontal divider
-            id: probes_bar
-            x: 0
-            y: 86
-            width: 304
-            border_color: !lambda return lv_color_hex(id(color_75));
-            height: 20
-            border_width: 10
-            border_side:
-              - TOP
-            radius: 10
-            pad_all: 0
-            bg_color: 0
-        - label:
-            id: probes_title
-            y: 82
-            bg_opa: COVER
-            text_font: MONTSERRAT_BOLD_FONT_14
-            text_align: CENTER
-            text_color: !lambda return lv_color_hex(id(color_75));
-            x: 58
-            width: 188
-            text: "TEMPERATURE PROBES"
-
-        - obj:  # sensors
-            x: 0
-            y: 96
-            width: 304
-            height: 76
-            pad_all: 0
-            border_width: 0
-            radius: 0
-            bg_color: 0
-            scrollable: false
-            widgets:              
-              - obj: # sensor 1
-                  id: sensor1_obj
-                  x: 0
-                  y: 4
-                  styles: item_obj_style
-                  clickable: !lambda |-
-                    return false;
-                  widgets:
-                    - label:  # background
-                        id: sensor1_label_shadow
-                        x: 0
-                        y: 15
-                        width: 62
-                        text_font: SEGMENT_FONT_20
-                        text: "888"
-                        text_color: !lambda return lv_color_hex(id(color_00));
-                        text_align: RIGHT
-                        hidden: !lambda |-
-                          return false;
-                    - label:
-                        id: sensor1_label
-                        x: 0
-                        y: 15
-                        width: 62
-                        bg_opa: TRANSP
-                        text_align: RIGHT
-                        text_font: SEGMENT_FONT_20
-                        text_color: !lambda |-
-                          return lv_color_hex(id(color_100));
-                        text: !lambda |-
-                          return ("---");
-                        hidden: !lambda |-
-                          return false;
-                    - label:  # background large
-                        id: sensor1_label_large_shadow
-                        x: 0
-                        y: 25
-                        width: 69
-                        text_font: SEGMENT_FONT_25
-                        text: "888"
-                        text_color: !lambda return lv_color_hex(id(color_00));
-                        text_align: RIGHT
-                        hidden: !lambda |-
-                          return false;
-                    - label:
-                        id: sensor1_label_large
-                        x: 0
-                        y: 25
-                        width: 69
-                        bg_opa: TRANSP
-                        text_align: RIGHT
-                        text_font: SEGMENT_FONT_25
-                        text_color: !lambda |-
-                          return lv_color_hex(id(color_100));
-                        text: !lambda |-
-                          return ("---");
-                        hidden: !lambda |-
-                          return false;
-                    - label:  # alarm bell
-                        id: sensor1_limit_label_bell
-                        x: 60
-                        y: 37
-                        width: 15
-                        text_font: ICON_FONT_9
-                        text_align: LEFT
-                        text: "\U000F009A"
-                        text_color: !lambda |-
-                          return lv_color_hex(id(color_100));
-                        hidden: !lambda |-
-                          return false;
-                    - label:  # background
-                        id: sensor1_limit_label_shadow
-                        x: 0
-                        y: 39
-                        width: 62
-                        bg_opa: TRANSP
-                        text_font: SEGMENT_FONT_20
-                        text_align: RIGHT
-                        text: "888"
-                        text_color: !lambda return lv_color_hex(id(color_00));
-                        hidden: !lambda |-
-                          return false;
-                    - label:
-                        id: sensor1_limit_label
-                        x: 0
-                        y: 39
-                        width: 62
-                        bg_opa: TRANSP
-                        text_font: SEGMENT_FONT_20
-                        text_align: RIGHT
-                        text_color: !lambda return lv_color_hex(id(color_100));
-                        text: !lambda |-
-                          return (" ");
-                        hidden: !lambda |-
-                          return false;
-                    - arc:
-                        id: sensor1_arc
-                        styles: arc_value_style
-                        arc_color: !lambda return lv_color_hex(id(color_25));
-                        min_value: 1
-                        max_value: 100
-                        indicator:
-                          arc_color: !lambda return lv_color_hex(id(color_100));
-                          arc_width: 5
-                        value: !lambda |-
-                          return 0;
+            text: "GAS BUDDY"
 
   # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
     - id: settings_page
@@ -1524,36 +1249,6 @@ binary_sensor:
     name: "Status ESP"
 
 script:
-  # Consolidated refresh scripts for performance optimization
-  - id: refresh_all_temps
-    then:
-      - lvgl.widget.refresh:
-          - zone1_label_large
-          - zone1_arc
-          - sensor1_label
-          - sensor1_label_large
-          - sensor1_arc
-          - sensor1_obj
-      - lvgl.widget.redraw:
-
-  - id: refresh_all_limits
-    then:
-      - lvgl.widget.refresh:
-          - zone1_label_shadow
-          - zone1_label_large
-          - zone1_label_large_shadow
-          - zone1_limit_label_shadow
-          - zone1_limit_label_bell
-          - sensor1_obj
-          - sensor1_label
-          - sensor1_label_shadow
-          - sensor1_label_large
-          - sensor1_label_large_shadow
-          - sensor1_limit_label
-          - sensor1_limit_label_shadow
-          - sensor1_limit_label_bell
-      - lvgl.widget.redraw:
-
   - id: hide_boot_screen
     then:
       - if:
@@ -1578,15 +1273,6 @@ script:
             # some things to refresh from persisted settings
             - lvgl.widget.refresh: battery_symbol_obj
 
-            # for ettings_hide_inactive_sensors_persistent
-            - lvgl.widget.refresh: [zone1_label_large]
-            - lvgl.widget.refresh: [zone1_arc]
-            - lvgl.widget.refresh: [zone1_limit_label_bell]
-            - lvgl.widget.refresh: [sensor1_obj]
-            - lvgl.widget.refresh: [sensor1_label]
-            - lvgl.widget.refresh: [sensor1_label_large]
-            - lvgl.widget.refresh: [sensor1_limit_label]
-            - lvgl.widget.refresh: [sensor1_limit_label_bell]
             - if:
                 condition:
                   lambda: return id(settings_hide_soc_persistent);
@@ -1675,34 +1361,10 @@ script:
           - gas_percent_bar
       - delay: 1ms
 
-      # Chunk 3: Zone 1 & 2 widgets
       - lvgl.widget.refresh:
-          - zones_bar
-          - zones_title
-          - zone1_obj
-          - zone1_label_shadow
-          - zone1_label_large_shadow
-          - zone1_label_large
-          - zone1_limit_label_bell
-          - zone1_limit_label_shadow
-          - zone1_arc
+          - scale_bar
+          - scale_title
       - delay: 1ms
-
-      # Chunk 5: Sensor 1 & 2 widgets
-      - lvgl.widget.refresh:
-          - probes_bar
-          - probes_title
-          - sensor1_obj
-          - sensor1_label_shadow
-          - sensor1_label
-          - sensor1_label_large_shadow
-          - sensor1_label_large
-          - sensor1_limit_label_bell
-          - sensor1_limit_label_shadow
-          - sensor1_limit_label
-          - sensor1_arc
-      - delay: 1ms
-
       # Chunk: Settings page
       - lvgl.widget.refresh:
           - settings_bar
@@ -1726,15 +1388,6 @@ script:
           - color_bad_label
           - color_light_label
       - delay: 1ms
-
-      - lambda: |-
-          // Update nested parts
-
-          lv_obj_set_style_arc_color(zone1_arc, lv_color_hex(id(color_100)), LV_PART_INDICATOR);
-          lv_obj_set_style_arc_color(sensor1_arc, lv_color_hex(id(color_100)), LV_PART_INDICATOR);
-
-          lv_obj_set_style_bg_color(sensor_limit_slider, lv_color_hex(id(color_50)), LV_PART_INDICATOR);
-          lv_obj_set_style_bg_color(sensor_limit_slider, lv_color_hex(id(color_100)), LV_PART_KNOB);
 
   - id: toggle_settings_page
     then:
