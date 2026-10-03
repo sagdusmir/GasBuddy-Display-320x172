@@ -5,8 +5,8 @@ substitutions:
 
   # Name of the ESPHome device (modify if you like, avoid special characters)
   name: gasbuddy-display
-  device_description: "Monitor a GasBuddy Scale"
-  version: "GasBuddyDisplay 0.0.1"
+  device_description: "Monitor an OW GasBuddy Scale"
+  version: "GasBuddyDisplay 0.0.1-alpha"
 
   # either pull values from secrets.yaml
   # or have it directly in this file
