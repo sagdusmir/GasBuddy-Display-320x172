@@ -42,7 +42,7 @@ Bare device during testing.<br>
 ### Implemented functionality
 
 - **Gas level** monitoring (if GasBuddy is installed)
-- **Alarms** — visual indicator for gas level and battery SOC
+- **Alarms** — visual indicator and optional buzzer for gas level and battery SOC. While either value is at or below its limit, the passive buzzer repeats the alert tone every 5 seconds. It stays quiet for the first 15 seconds after boot.
 - Touchscreen configuration
   - tap the rightmost status bar to see some other details
 - Multiple **color schemes** (predefined + easy to add your own)
@@ -64,21 +64,22 @@ See [changelog.md](changelog.md).
 ## Hardware
 ### BOM
 
-| Component                                    | Qty | Source                                   | Costs        |
-|----------------------------------------------|-----|------------------------------------------|--------------|
-| ESP32 Dev Board                              | 1   | Amazon, AliExpress                       |   ~15€ - 20€ |
-| Battery                                      | 1   | AliExpress                               |    ~8€ - 12€ |
-| Power Switch with Reverse Voltage Protection | 1   | somewhere online                         |    ~5€ - 10€ |
-| USB 5V 2A Boost Converter + Charger circuit  | 1   | AliExpress                               |     ~2€ - 5€ |
-| USB-C Connector                              | 1   | Amazon, eBay, AliExpress                 |       ~2€    |
-| 2 pin Wire Connectors                        | n   | Amazon, eBay, AliExpress                 |       ~2€    |
-| Diode                                        | 1   | eBay, somewhere online                   |       ~1€    |
-| Screws	                                      | 4	  | hardware store, eBay, Amazon, AliExpress |       ~1€    |
-| Buzzer	                                      | 1	  | Amazon, eBay, AliExpress                 |       ~1€    |
-| some wires (soft silicone wire recommended)  | n   | AliExpress, Amazon, eBay                 |       ~2€    |
-| Kapton tape or electrical tape               | ?   | AliExpress, Amazon, eBay                 |       ~0€    |
-| Case                                         | 1   | a friend with a 3d printer               |    a beer    |
-| USB-C Connection Cable                       | 1   | your existing collection of cables       |       ~0€    |
+| Component                                    | Qty | Source                                   | Costs            |
+|----------------------------------------------|-----|------------------------------------------|------------------|
+| ESP32 Dev Board                              | 1   | Amazon, AliExpress                       |   ~15€ - 20€     |
+| Connector to original GasBuddy               | 1   | Alibaba                                  |    ~2€ - arm+leg |
+| Battery                                      | 1   | AliExpress                               |    ~8€ - 12€     |
+| Power Switch with Reverse Voltage Protection | 1   | somewhere online                         |    ~5€ - 10€     |
+| USB 5V 2A Boost Converter + Charger circuit  | 1   | AliExpress                               |     ~2€ - 5€     |
+| USB-C Connector                              | 1   | Amazon, eBay, AliExpress                 |       ~2€        |
+| 2 pin Wire Connectors                        | n   | Amazon, eBay, AliExpress                 |       ~2€        |
+| Diode                                        | 1   | eBay, somewhere online                   |       ~1€        |
+| Screws	                                     | 4	 | hardware store, eBay, Amazon, AliExpress |       ~1€        |
+| Buzzer	                                     | 1	 | Amazon, eBay, AliExpress                 |       ~1€        |
+| some wires (soft silicone wire recommended)  | n   | AliExpress, Amazon, eBay                 |       ~2€        |
+| Kapton tape or electrical tape               | ?   | AliExpress, Amazon, eBay                 |       ~0€        |
+| Case                                         | 1   | a friend with a 3d printer               |    a beer        |
+| USB-C Connection Cable                       | 1   | your existing collection of cables       |       ~0€        |
 
 
 ### Component Details
@@ -86,9 +87,11 @@ See [changelog.md](changelog.md).
 * __ESP32 Dev Board__<br>
   You need a "__Waveshare ESP32-C6-Touch-LCD-1.47__". It is equipped with an ESP32-C6, WiFi, Bluetooth, a 320x172 Pixel 1.47" touchscreen, and everything you need. No additional memory card required.
 
+* __Connector to original OW GasBuddy__<br>
+  This is a "__LLT-M12-10004F3054__" (M12-4pin, female, UL2464 cable connector with thread lock) connector from LLT and might be hard to get. I found the manufacturer __Shenzhen Lilutong Electronic Technology Co., Ltd.__ on Alibaba. Contact me in case you need one.
 
 * __Battery__
-  A 3.7V LiPo/Li-Ion Battery (1 cell) will power the ESP32 Dev Board. Because of space constraints I am going with a battery of type 702080  (7mm x 20mm x 80mm) with a capacity of 1500mAh.
+  A 3.7V LiPo/Li-Ion Battery (1 cell) will power the ESP32 Dev Board and the GasBuddy. Bigger is better and I went for 30000mAh. The GasBuddy alone consumes 145 mW of power.
 
 * __Power Switch with Reverse Voltage Protection__<br>
   To minimize power draw, I am using a Pololu Mini Pushbutton Power Switch,Reverse Voltage Protection,LV (Pololu 2808) which should reduce power draw as much as possible. Unfortunately the module is a bit pricey.
@@ -165,32 +168,18 @@ Each [GitHub Release](https://github.com/sagdusmir/GasBuddy-Display-320x172/rele
 
 | File | When to use |
 |---|---|
-| `*.factory.bin.espbinpatch` | First flash on a new or empty board (erases everything) |
+| `*.factory.bin.espbinpatch` | First flash on a new or empty device (erases everything) |
 | `*.ota.bin.espbinpatch` | Later updates if the device already works (keeps Wi-Fi and other saved settings) |
 
 1. Download the matching file from the latest release.
-2. Open [ESP Bin Patch](https://sagdusmir.github.io/ESP-bin-patch/) in **Chrome or Edge**.
-3. Choose the downloaded file on that page (it accepts `.espbinpatch`). GitHub Release download links cannot be loaded in the browser (CORS).
-4. Fill in the replacements. The new value must be the same length or shorter (leftover bytes are padded with `0x00`):
-
-   | What | Old (already in the image) | Mode |
-   |---|---|---|
-   | Wi-Fi SSID | `ESPBINPATCH_WIFI_SSID___________` | utf-8 |
-   | Wi-Fi password | `ESPBINPATCH_WIFI_PASSWORD______________________________________` | utf-8 |
-   | OTA password | `ESPBINPATCH_OTA_PASSWORD________________________________________` | utf-8 |
-   | Home Assistant API key | `ESPBINPATCH_API_ENCRYPTION_KEY__` | auto |
-
+2. Use the ESP Bin Patcher link in the release notes (preconfigured) in **Chrome or Edge**.
+3. Choose the downloaded file on that page.
+4. Fill in the replacements (Wi-Fi SSID, Wi-Fi password, OTA password, Home Assistant API key).
    For the API key, paste your Home Assistant / ESPHome `api.encryption.key` (the Base64 value) as **New**.
 5. Click **Patch firmware**, connect the board via USB, then **Install patched firmware**.
    - Factory file: choose **Erase everything**.
    - OTA file: choose **Keep saved settings**.
-6. You might need to reset the device after flashing (RST button).
-
-A form with the Old values already filled in (still pick the file in step 3):
-
-```
-https://sagdusmir.github.io/ESP-bin-patch/?lock=1&chip=ESP32-C6&flash=erase&pad=00&patch=0&old=ESPBINPATCH_WIFI_SSID___________&new=YOUR_WIFI_SSID&enc=utf-8&old=ESPBINPATCH_WIFI_PASSWORD______________________________________&new=YOUR_WIFI_PASSWORD&enc=utf-8&old=ESPBINPATCH_OTA_PASSWORD________________________________________&new=YOUR_OTA_PASSWORD&enc=utf-8&old=ESPBINPATCH_API_ENCRYPTION_KEY__&new=YOUR_HA_API_KEY&enc=auto
-```
+6. You might need to power-cycle the device after flashing if the screen shows some artefacts.
 
 ### Compile from source
 
@@ -233,6 +222,8 @@ This project would not have been possible without the work of the community. Spe
 [JBecker32/G32-Display-480x320-BT](https://github.com/JBecker32/G32-Display-480x320-BT) (the original software project)
 
 [fschwarz86/g32](https://github.com/fschwarz86/g32)
+
+[tobsch/g32-investigations](https://github.com/tobsch/g32-investigations) (additional information about BLE and serial communication)
 
 [ralmoe/g32-docker-client](https://github.com/ralmoe/g32-docker-client)
 

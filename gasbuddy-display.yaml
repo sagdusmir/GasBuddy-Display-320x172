@@ -6,7 +6,7 @@ substitutions:
   # Name of the ESPHome device (modify if you like, avoid special characters)
   name: gasbuddy-display
   device_description: "Monitor an OW GasBuddy Scale"
-  version: "0.0.1-alpha"
+  version: "GBuddy 0.0.1"
 
   # either pull values from secrets.yaml
   # or have it directly in this file
@@ -60,9 +60,17 @@ substitutions:
   SETTINGS_HIDE_SOC: "false"
   SETTINGS_MIN_SOC_VALUE: "25"
 
+  # empty bottle weight slider, in hundredths of a kilogram (300 = 3.00 kg, 2000 = 20.00 kg)
+  CALIBRATION2_MIN_HUNDREDTHS: "350"
+  CALIBRATION2_MAX_HUNDREDTHS: "1500"
+
+  # interval for alarm sound
+  Beeper_interval: "5s"
+
   # sounds (in RTTTL syntax):
   Wifi_Connect_Sound: "dadi:d=16,o=6,b=140:d6,32p,e6"
   Wifi_Disconnect_Sound: "siren:d=8,o=5,b=100:d,e,d,e,d,e,d,e"
+  Alert_Sound: "dadidadi:d=8,o=5,b=150:d,e,d,e,d,e,d,e"
   
   # D A N G E R  Z O N E! # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
   # From here on, please only make changes if you know what you are doing and   #
@@ -310,6 +318,20 @@ interval:
   - interval: 10s
     then:
       - lvgl.widget.refresh: warning_on_label
+  - interval: ${Beeper_interval}
+    then:
+      - lambda: |-
+          // Match the warning icon: stay quiet for the first 15s after boot.
+          if (millis() - id(boot_start_time) < 15000) {
+            return;
+          }
+          bool soc_low = id(battery_soc_seen)
+            && (id(battery_soc_value) <= id(settings_min_soc_value_persistent));
+          bool gas_low = id(gas_percent_seen)
+            && (id(gas_percent) <= id(settings_min_gas_value_persistent));
+          if (soc_low || gas_low) {
+            id(my_rtttl).play("${Alert_Sound}");
+          }
   - interval: 1s
     then:
       - if:
@@ -357,6 +379,8 @@ interval:
           const uint16_t value = (uint16_t(buf[2]) << 8) | buf[3];
           id(uart_gas_value) = value;
           ESP_LOGI("uart_gasbuddy", "Parsed value: %u", value);
+      - lvgl.widget.refresh: uart_raw_value
+      - script.execute: update_remaining_gas
 
 globals:
   - id: wifi_connected
@@ -368,13 +392,18 @@ globals:
   - id: gas_weight
     type: int32_t
     initial_value: '-1'
+
   # Raw GasBuddy UART reading (reply bytes [2:3]). Not published.
   - id: uart_gas_value
     type: int32_t
     initial_value: '-1'
+
   - id: gas_percent
     type: int32_t
     initial_value: '0'
+  - id: gas_percent_seen
+    type: bool
+    initial_value: 'false'
   - id: apply_wifi_started_by_user  # for supressing sounds
     type: bool
     initial_value: 'false'
@@ -420,6 +449,9 @@ globals:
   - id: battery_soc_value
     type: int
     initial_value: '0'
+  - id: battery_soc_seen
+    type: bool
+    initial_value: 'false'
 
   - id: settings_min_gas_value_persistent
     type: int
@@ -441,10 +473,47 @@ globals:
     type: int
     initial_value: '${SETTINGS_COLOR_SCHEME_IDX}'
     restore_value: true
+  # Raw load-cell count with nothing on the platform. Not a kilogram value.
+  - id: settings_scale_raw_zero_persistent
+    type: int
+    initial_value: '0'
+    restore_value: true
+  # Raw load-cell count with the new bottle on the platform.
+  - id: settings_scale_brutto_persistent
+    type: int
+    initial_value: '0'
+    restore_value: true
+  - id: settings_scale_bottle_kg_persistent
+    type: int
+    initial_value: '11'
+    restore_value: true
+  # Empty-bottle weight in hundredths of a kilogram (1000 = 10.00 kg).
+  - id: calibration2_hundredths_persisted
+    type: int
+    initial_value: '1000'
+    restore_value: true
 
   - id: current_ip_address
     type: std::string
     initial_value: '" "'  # not connected
+  # Working copies are loaded when the wizard opens. Persisted values are
+  # written only on the last calibration page, so leaving earlier does not
+  # replace a finished calibration.
+  - id: settings_scale_raw_zero
+    type: int
+    initial_value: '0'
+  - id: settings_scale_bottle_kg
+    type: int
+    initial_value: '0'
+  # Hundredths of a kilogram shown on calibration2_page. Loaded from
+  # calibration2_hundredths_persisted when the wizard opens.
+  - id: calibration2_hundredths
+    type: int
+    initial_value: '1000'
+  # Choices for the bottle-size buttons. Button text is the value itself.
+  - id: scale_bottle_kg_options
+    type: std::array<int, 3>
+    initial_value: '{5, 8, 11}'
 
 text_sensor:
   - platform: wifi_info
@@ -519,15 +588,7 @@ font:
     glyphs:
       - "\U000F15CB" # mdi-numeric-positive-1
       - "\U000F1052" # mdi-numeric-negative-1
-  - file: 'https://raw.githubusercontent.com/sagdusmir/G32-Grill-Display-320x172-BT/main/fonts/MaterialDesign-Webfont/materialdesignicons-webfont.ttf'
-    # file: 'fonts/MaterialDesign-Webfont/materialdesignicons-webfont.ttf'
-    id: ICON_FONT_20
-    size: 20
-    glyphs:
-      - "\U000F12A3" # mdi-battery-high
-      - "\U000F12A2" # mdi-battery-medium
-      - "\U000F12A1" # mdi-battery-low
-      - "\U000F008E" # mdi-battery-outline
+      - "\U000F0493" # mdi-cog
   - file: 'https://raw.githubusercontent.com/sagdusmir/G32-Grill-Display-320x172-BT/main/fonts/Montserrat/Montserrat-Bold.ttf'
     # file: 'fonts/Montserrat/Montserrat-Bold.ttf'
     id: MONTSERRAT_BOLD_FONT_18
@@ -573,32 +634,6 @@ font:
       - "x"
       - "y"
       - "z"
-  - file: 'https://raw.githubusercontent.com/sagdusmir/G32-Grill-Display-320x172-BT/main/fonts/Montserrat/Montserrat-Bold.ttf'
-    # file: 'fonts/Montserrat/Montserrat-Bold.ttf'
-    id: MONTSERRAT_BOLD_FONT_14
-    size: 14
-    glyphs:
-      - "G"
-      - "A"
-      - "S"
-      - "B"
-      - "U"
-      - "D"
-      - "Y"
-      - "E"
-      - "T"
-      - "M"
-      - "P"
-      - "I"
-      - "W"
-      - "C"
-      - "L"
-      - "1"
-      - "2"
-      - "3"
-      - "4"
-      - " "
-
 
 lvgl:
   buffer_size: 50%
@@ -689,11 +724,11 @@ lvgl:
                   arc_width: 4
 
       - obj:
-          id: status_bar_right
-          x: 304
+          id: status_bar_top
+          x: 0
           y: 0
-          width: 16
-          height: 172
+          width: 320
+          height: 30
           bg_color: 0
           bg_opa: COVER
           pad_all: 0
@@ -701,12 +736,12 @@ lvgl:
           hidden: true
           radius: 0
           widgets:            
-            - obj: # symbol for batter low warning
+            - obj: # horizontal battery icon
                 id: battery_symbol_obj
-                x: 0
-                y: 11
-                width: 16
-                height: 20
+                x: 287
+                y: 0
+                width: 30
+                height: 27
                 bg_color: 0
                 pad_all: 0
                 outline_width: 0
@@ -718,46 +753,31 @@ lvgl:
                 widgets:
                   - label:
                       id: battery_symbol
-                      x: -1
+                      x: 0
                       y: 0
-                      text_font: ICON_FONT_20
+                      text_font: MONTSERRAT_24
                       text_align: LEFT
-                      width: 15
+                      width: 30
                       text_color: !lambda |-
                         if( id(battery_soc_value) <= id(settings_min_soc_value_persistent) ) {
                           return lv_color_hex(id(color_bad));
                         }
                         return lv_color_hex(id(color_good));
                       text: !lambda |-
-                        const char* icons[4] = {"\U000F008E","\U000F12A1","\U000F12A2","\U000F12A3"};
+                        const char* icons[5] = {"\U0000F244","\U0000F243","\U0000F242","\U0000F241","\U0000F240"};
                         float soc = id(battery_soc_value);
                         int idx = soc <= 15 ? 0 :
                             soc <= 40 ? 1 :
-                            soc <= 80 ? 2 : 3;
+                            soc <= 60 ? 2 :
+                            soc <= 80 ? 3 : 4;
                         return icons[idx];
-                  - line:
-                      id: battery_symbol_fix  # glyph scaling artefact
-                      points:
-                        - 7, 6
-                        - 11, 6
-                      line_width: 1
-                      line_rounded: false
-                      line_color: !lambda |-
-                          float soc = id(battery_soc_value);
-                          if (soc <= 80) {
-                            return lv_color_hex(0x000000);
-                          }
-                          if( id(battery_soc_value) <= id(settings_min_soc_value_persistent) ) {
-                            return lv_color_hex(id(color_bad));
-                          }
-                          return lv_color_hex(id(color_good));
             - label: # symbol for successfull WIFI connection
                 id: wifi_connect_label
-                x: 3
-                y: 33
-                text_font: MONTSERRAT_10
+                x: 255
+                y: 1
+                text_font: MONTSERRAT_20
                 text_align: LEFT
-                width: 13
+                width: 26
                 text_color: !lambda |-
                   if( id(wifi_connected) ) {
                     return lv_color_hex(id(color_good));
@@ -766,9 +786,9 @@ lvgl:
                 text: "\uF1EB" # WIFI symbol
             - label:
                 id: warning_on_label
-                x: 4
-                y: 47
-                text_font: MONTSERRAT_10
+                x: 228
+                y: 2
+                text_font: MONTSERRAT_20
                 text_color: !lambda |-
                   if (millis() - id(boot_start_time) < 15000) {
                     // first 15 seconds after boot: no warning
@@ -782,152 +802,13 @@ lvgl:
                   }
                   return lv_color_hex(id(color_00));
                 text_align: LEFT
-                width: 12
+                width: 24
                 text: "\uF071"
-            - obj:
-                id: gas_level_obj
-                x: 1
-                y: 61
-                width: 15
-                height: 106
-                pad_all: 0
-                bg_color: 0
-                border_width: 0
-                radius: 0
-                hidden: !lambda |-
-                  return false;
-                widgets:
-                  - bar:
-                      id: gas_percent_bar
-                      x: 5
-                      y: 0
-                      height: 100
-                      width: 8
-                      radius: 0
-                      min_value: 1
-                      max_value: 100
-                      bg_opa: COVER
-                      bg_color: !lambda return lv_color_hex(id(color_25));
-                      indicator:
-                        radius: 0
-                        bg_color: !lambda return lv_color_hex(id(color_100)); // placeholder
-                      value: !lambda |-
-                        int y = id(gas_weight);
-                        if( y < 0) {
-                          return 0;
-                        }
-                        int z = id(gas_percent);
-                        if( z <= id(settings_min_gas_value_persistent) ) {
-                          lv_obj_set_style_bg_color(id(gas_percent_bar), lv_color_hex(id(color_bad)), LV_PART_INDICATOR);
-                        } else {                          
-                          lv_obj_set_style_bg_color(id(gas_percent_bar), lv_color_hex(id(color_good)), LV_PART_INDICATOR);
-                        }
-                        return z;
-                  - label:  # 1/10
-                      x: 4
-                      y: 0
-                      width: 10
-                      height: 11
-                      bg_opa: TRANSP                      
-                      border_width: 1
-                      radius: 0
-                      border_color: 0
-                      text: " "
-                  - label:  # 2/10
-                      x: 4
-                      y: 10
-                      width: 10
-                      height: 11
-                      bg_opa: TRANSP                      
-                      border_width: 1
-                      radius: 0
-                      border_color: 0
-                      text: " "
-                  - label:  # 3/10
-                      x: 4
-                      y: 20
-                      width: 10
-                      height: 11
-                      bg_opa: TRANSP                      
-                      border_width: 1
-                      radius: 0
-                      border_color: 0
-                      text: " "
-                  - label:  # 4/10
-                      x: 4
-                      y: 30
-                      width: 10
-                      height: 11
-                      bg_opa: TRANSP                      
-                      border_width: 1
-                      radius: 0
-                      border_color: 0
-                      text: " "
-                  - label:  # 5/10
-                      x: 4
-                      y: 40
-                      width: 10
-                      height: 11
-                      bg_opa: TRANSP                      
-                      border_width: 1
-                      radius: 0
-                      border_color: 0
-                      text: " "
-                  - label:  # 6/10
-                      x: 4
-                      y: 50
-                      width: 10
-                      height: 11
-                      bg_opa: TRANSP                      
-                      border_width: 1
-                      radius: 0
-                      border_color: 0
-                      text: " "
-                  - label:  # 7/10
-                      x: 4
-                      y: 60
-                      width: 10
-                      height: 11
-                      bg_opa: TRANSP                      
-                      border_width: 1
-                      radius: 0
-                      border_color: 0
-                      text: " "
-                  - label:  # 8/10
-                      x: 4
-                      y: 70
-                      width: 10
-                      height: 11
-                      bg_opa: TRANSP                      
-                      border_width: 1
-                      radius: 0
-                      border_color: 0
-                      text: " "
-                  - label:  # 9/10
-                      x: 4
-                      y: 80
-                      width: 10
-                      height: 11
-                      bg_opa: TRANSP                      
-                      border_width: 1
-                      radius: 0
-                      border_color: 0
-                      text: " "
-                  - label:  # 10/10
-                      x: 4
-                      y: 90
-                      width: 10
-                      height: 11
-                      bg_opa: TRANSP                      
-                      border_width: 1
-                      radius: 0
-                      border_color: 0
-                      text: " "
             - label: # catch clicks
                 x: 0
                 y: 0
-                width: 16
-                height: 172
+                width: 320
+                height: 30
                 bg_opa: TRANSP
                 pad_all: 0
                 border_width: 0
@@ -938,34 +819,644 @@ lvgl:
                   - script.execute: toggle_settings_page
 
   pages:
-    - id: arcs_page
+    - id: scale_page
+      bg_color: 0x800080  # temporary debug color
+      bg_opa: COVER
+      pad_all: 0
+      scrollable: false
+      widgets:
+        - obj:
+            id: gas_level_obj
+            x: 14
+            y: 103
+            width: 292
+            height: 24
+            pad_all: 0
+            scrollable: false
+            bg_color: 0
+            border_width: 1
+            border_color: !lambda return lv_color_hex(id(color_50));
+            radius: 0
+            hidden: !lambda |-
+              return false;
+            widgets:
+              - bar:
+                  id: gas_percent_bar
+                  x: 1
+                  y: 2
+                  height: 20
+                  width: 290
+                  radius: 0
+                  min_value: 1
+                  max_value: 100
+                  bg_opa: COVER
+                  bg_color: !lambda return lv_color_hex(id(color_25));
+                  indicator:
+                    radius: 0
+                    bg_color: !lambda return lv_color_hex(id(color_100)); // placeholder
+                  value: !lambda |-
+                    int y = id(gas_weight);
+                    if( y < 0) {
+                      return 0;
+                    }
+                    int z = id(gas_percent);
+                    if (z < 0) {
+                      z = 0;
+                    }
+                    if (z > 100) {
+                      z = 100;
+                    }
+                    if( z <= id(settings_min_gas_value_persistent) ) {
+                      lv_obj_set_style_bg_color(id(gas_percent_bar), lv_color_hex(id(color_bad)), LV_PART_INDICATOR);
+                    } else {
+                      lv_obj_set_style_bg_color(id(gas_percent_bar), lv_color_hex(id(color_good)), LV_PART_INDICATOR);
+                    }
+                    return z;
+              # Each cell is 29px. The first nine boxes are 30px wide so the
+              # 1px borders overlap and each divider stays a single pixel.
+              - label:  # 1/10
+                  x: 1
+                  y: 1
+                  width: 30
+                  height: 22
+                  bg_opa: TRANSP
+                  border_width: 1
+                  radius: 0
+                  border_color: 0
+                  text: " "
+              - label:  # 2/10
+                  x: 30
+                  y: 1
+                  width: 30
+                  height: 22
+                  bg_opa: TRANSP
+                  border_width: 1
+                  radius: 0
+                  border_color: 0
+                  text: " "
+              - label:  # 3/10
+                  x: 59
+                  y: 1
+                  width: 30
+                  height: 22
+                  bg_opa: TRANSP
+                  border_width: 1
+                  radius: 0
+                  border_color: 0
+                  text: " "
+              - label:  # 4/10
+                  x: 88
+                  y: 1
+                  width: 30
+                  height: 22
+                  bg_opa: TRANSP
+                  border_width: 1
+                  radius: 0
+                  border_color: 0
+                  text: " "
+              - label:  # 5/10
+                  x: 117
+                  y: 1
+                  width: 30
+                  height: 22
+                  bg_opa: TRANSP
+                  border_width: 1
+                  radius: 0
+                  border_color: 0
+                  text: " "
+              - label:  # 6/10
+                  x: 146
+                  y: 1
+                  width: 30
+                  height: 22
+                  bg_opa: TRANSP
+                  border_width: 1
+                  radius: 0
+                  border_color: 0
+                  text: " "
+              - label:  # 7/10
+                  x: 175
+                  y: 1
+                  width: 30
+                  height: 22
+                  bg_opa: TRANSP
+                  border_width: 1
+                  radius: 0
+                  border_color: 0
+                  text: " "
+              - label:  # 8/10
+                  x: 204
+                  y: 1
+                  width: 30
+                  height: 22
+                  bg_opa: TRANSP
+                  border_width: 1
+                  radius: 0
+                  border_color: 0
+                  text: " "
+              - label:  # 9/10
+                  x: 233
+                  y: 1
+                  width: 30
+                  height: 22
+                  bg_opa: TRANSP
+                  border_width: 1
+                  radius: 0
+                  border_color: 0
+                  text: " "
+              - label:  # 10/10
+                  x: 262
+                  y: 1
+                  width: 29
+                  height: 22
+                  bg_opa: TRANSP
+                  border_width: 1
+                  radius: 0
+                  border_color: 0
+                  text: " "
+
+  # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+    - id: calibration0_page
+      skip: true
       bg_color: 0
       bg_opa: COVER
       pad_all: 0
+      scrollable: false
+      on_load:
+        then:
+          - lambda: |-
+              id(settings_scale_raw_zero) = id(settings_scale_raw_zero_persistent);
+              id(settings_scale_bottle_kg) = id(settings_scale_bottle_kg_persistent);
+              id(calibration2_hundredths) = id(calibration2_hundredths_persisted);
       widgets:
-        - obj:  # only for drawing the horizontal divider
-            id: scale_bar
-            x: 0
-            y: 0
-            width: 304
-            height: 20
-            border_color: !lambda return lv_color_hex(id(color_75));
-            border_width: 10
-            border_side:
-              - TOP
-            radius: 10
-            pad_all: 0
-            bg_color: 0
         - label:
-            id: scale_title
-            x: 99
-            y: -4
-            width: 106
-            bg_opa: COVER
-            text_font: MONTSERRAT_BOLD_FONT_14
+            id: calibration0_label
+            x: 14
+            y: 61
+            width: 292
+            height: 56
+            text_font: MONTSERRAT_20
             text_align: CENTER
-            text_color: !lambda return lv_color_hex(id(color_75));
-            text: "GAS BUDDY"
+            long_mode: WRAP
+            bg_opa: TRANSP
+            text_color: !lambda return lv_color_hex(id(color_100));
+            text: "Remove Gas Bottle from GasBuddy"
+        - button:
+            id: calibration0_next_button
+            x: 14
+            y: 136
+            width: 292
+            height: 36
+            pad_all: 0
+            scrollable: false
+            radius: 0
+            bg_opa: COVER
+            bg_color: !lambda return lv_color_hex(id(color_50));
+            shadow_color: !lambda return lv_color_hex(id(color_25));
+            widgets:
+              - label:
+                  id: calibration0_next_button_label
+                  align: CENTER
+                  width: 292
+                  text_font: MONTSERRAT_20
+                  text_align: CENTER
+                  text_color: !lambda return lv_color_hex(id(color_100));
+                  bg_color: !lambda return lv_color_hex(id(color_50));
+                  text: "Continue"
+            on_click:
+              - lambda: |-
+                  if (id(uart_gas_value) >= 0) {
+                    id(settings_scale_raw_zero) = id(uart_gas_value);
+                  }
+              - lvgl.page.show: calibration1_page
+
+  # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+    - id: calibration1_page
+      skip: true
+      bg_color: 0
+      bg_opa: COVER
+      pad_all: 0
+      scrollable: false
+      on_load:
+        then:
+          - script.execute: show_scale_bottle_kg_selection
+      widgets:
+        - label:
+            id: calibration1_label
+            x: 14
+            y: 42
+            width: 292
+            height: 28
+            text_font: MONTSERRAT_20
+            text_align: CENTER
+            bg_opa: TRANSP
+            text_color: !lambda return lv_color_hex(id(color_100));
+            text: "Select gas fill weight"
+        - button:
+            id: calibration_bottle_kg_button_0
+            x: 14
+            y: 77
+            width: 92
+            height: 48
+            checkable: true
+            scrollable: false
+            pad_all: 0
+            radius: 0
+            bg_opa: COVER
+            bg_color: !lambda return lv_color_hex(id(color_25));
+            border_width: 1
+            border_color: !lambda return lv_color_hex(id(color_50));
+            checked:
+              bg_opa: COVER
+              bg_color: !lambda return lv_color_hex(id(color_50));
+              border_color: !lambda return lv_color_hex(id(color_50));
+            widgets:
+              - label:
+                  id: calibration_bottle_kg_button_0_label
+                  align: CENTER
+                  width: 92
+                  text_font: MONTSERRAT_20
+                  text_align: CENTER
+                  bg_opa: TRANSP
+                  text_color: !lambda |-
+                    if (id(settings_scale_bottle_kg) == id(scale_bottle_kg_options)[0]) {
+                      return lv_color_hex(id(color_100));
+                    }
+                    return lv_color_hex(id(color_75));
+                  text: !lambda |-
+                    static char buf[4];
+                    snprintf(buf, sizeof(buf), "%dkg", id(scale_bottle_kg_options)[0]);
+                    return buf;
+            on_click:
+              - lambda: id(settings_scale_bottle_kg) = id(scale_bottle_kg_options)[0];
+              - script.execute: show_scale_bottle_kg_selection
+        - button:
+            id: calibration_bottle_kg_button_1
+            x: 114
+            y: 77
+            width: 92
+            height: 48
+            checkable: true
+            scrollable: false
+            pad_all: 0
+            radius: 0
+            bg_opa: COVER
+            bg_color: !lambda return lv_color_hex(id(color_25));
+            border_width: 1
+            border_color: !lambda return lv_color_hex(id(color_50));
+            checked:
+              bg_opa: COVER
+              bg_color: !lambda return lv_color_hex(id(color_50));
+              border_color: !lambda return lv_color_hex(id(color_50));
+            widgets:
+              - label:
+                  id: calibration_bottle_kg_button_1_label
+                  align: CENTER
+                  width: 92
+                  text_font: MONTSERRAT_20
+                  text_align: CENTER
+                  bg_opa: TRANSP
+                  text_color: !lambda |-
+                    if (id(settings_scale_bottle_kg) == id(scale_bottle_kg_options)[1]) {
+                      return lv_color_hex(id(color_100));
+                    }
+                    return lv_color_hex(id(color_75));
+                  text: !lambda |-
+                    static char buf[4];
+                    snprintf(buf, sizeof(buf), "%dkg", id(scale_bottle_kg_options)[1]);
+                    return buf;
+            on_click:
+              - lambda: id(settings_scale_bottle_kg) = id(scale_bottle_kg_options)[1];
+              - script.execute: show_scale_bottle_kg_selection
+        - button:
+            id: calibration_bottle_kg_button_2
+            x: 214
+            y: 77
+            width: 92
+            height: 48
+            checkable: true
+            scrollable: false
+            pad_all: 0
+            radius: 0
+            bg_opa: COVER
+            bg_color: !lambda return lv_color_hex(id(color_25));
+            border_width: 1
+            border_color: !lambda return lv_color_hex(id(color_50));
+            checked:
+              bg_opa: COVER
+              bg_color: !lambda return lv_color_hex(id(color_50));
+              border_color: !lambda return lv_color_hex(id(color_50));
+            widgets:
+              - label:
+                  id: calibration_bottle_kg_button_2_label
+                  align: CENTER
+                  width: 92
+                  text_font: MONTSERRAT_20
+                  text_align: CENTER
+                  bg_opa: TRANSP
+                  text_color: !lambda |-
+                    if (id(settings_scale_bottle_kg) == id(scale_bottle_kg_options)[2]) {
+                      return lv_color_hex(id(color_100));
+                    }
+                    return lv_color_hex(id(color_75));
+                  text: !lambda |-
+                    static char buf[4];
+                    snprintf(buf, sizeof(buf), "%dkg", id(scale_bottle_kg_options)[2]);
+                    return buf;
+            on_click:
+              - lambda: id(settings_scale_bottle_kg) = id(scale_bottle_kg_options)[2];
+              - script.execute: show_scale_bottle_kg_selection
+        - button:
+            id: calibration1_next_button
+            x: 14
+            y: 136
+            width: 292
+            height: 36
+            pad_all: 0
+            scrollable: false
+            radius: 0
+            bg_opa: COVER
+            bg_color: !lambda return lv_color_hex(id(color_50));
+            shadow_color: !lambda return lv_color_hex(id(color_25));
+            widgets:
+              - label:
+                  id: calibration1_next_button_label
+                  align: CENTER
+                  width: 292
+                  text_font: MONTSERRAT_20
+                  text_align: CENTER
+                  text_color: !lambda return lv_color_hex(id(color_100));
+                  bg_color: !lambda return lv_color_hex(id(color_50));
+                  text: "Continue"
+            on_click:
+              - lvgl.page.show: calibration2_page
+
+  # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+    - id: calibration2_page
+      skip: true
+      bg_color: 0
+      bg_opa: COVER
+      pad_all: 0
+      scrollable: false
+      on_load:
+        then:
+          - lambda: |-
+              const int lo = ${CALIBRATION2_MIN_HUNDREDTHS};
+              const int hi = ${CALIBRATION2_MAX_HUNDREDTHS};
+              if (id(calibration2_hundredths) < lo) id(calibration2_hundredths) = lo;
+              if (id(calibration2_hundredths) > hi) id(calibration2_hundredths) = hi;
+              lv_slider_set_value(calibration2_slider, id(calibration2_hundredths), LV_ANIM_OFF);
+          - lvgl.label.update:
+              id: calibration2_label
+              text: !lambda |-
+                static char buf[12];
+                snprintf(buf, sizeof(buf), "%.2f kg", id(calibration2_hundredths) / 100.0f);
+                return buf;
+      widgets:
+        - label:
+            id: calibration2_label
+            x: 14
+            y: 32
+            width: 220
+            height: 28
+            text_font: MONTSERRAT_20
+            text_align: CENTER
+            bg_opa: TRANSP
+            text_color: !lambda return lv_color_hex(id(color_100));
+            text: "10.00 kg"
+        - button:
+            id: calibration2_inc_button
+            x: 244
+            y: 40
+            width: 62
+            height: 44
+            pad_all: 0
+            scrollable: false
+            radius: 0
+            bg_opa: COVER
+            bg_color: !lambda return lv_color_hex(id(color_50));
+            shadow_color: !lambda return lv_color_hex(id(color_25));
+            widgets:
+              - label:
+                  id: calibration2_inc_button_label
+                  align: CENTER
+                  text_font: ICON_FONT_30
+                  text_color: !lambda return lv_color_hex(id(color_100));
+                  bg_color: !lambda return lv_color_hex(id(color_50));
+                  text: "\U000F15CB"
+            on_click:
+              - lambda: |-
+                  if (id(calibration2_hundredths) < ${CALIBRATION2_MAX_HUNDREDTHS}) id(calibration2_hundredths)++;
+              - lvgl.slider.update:
+                  id: calibration2_slider
+                  value: !lambda return id(calibration2_hundredths);
+              - lvgl.label.update:
+                  id: calibration2_label
+                  text: !lambda |-
+                    static char buf[12];
+                    snprintf(buf, sizeof(buf), "%.2f kg", id(calibration2_hundredths) / 100.0f);
+                    return buf;
+        - button:
+            id: calibration2_dec_button
+            x: 244
+            y: 88
+            width: 62
+            height: 44
+            pad_all: 0
+            scrollable: false
+            radius: 0
+            bg_opa: COVER
+            bg_color: !lambda return lv_color_hex(id(color_50));
+            shadow_color: !lambda return lv_color_hex(id(color_25));
+            widgets:
+              - label:
+                  id: calibration2_dec_button_label
+                  align: CENTER
+                  text_font: ICON_FONT_30
+                  text_color: !lambda return lv_color_hex(id(color_100));
+                  bg_color: !lambda return lv_color_hex(id(color_50));
+                  text: "\U000F1052"
+            on_click:
+              - lambda: |-
+                  if (id(calibration2_hundredths) > ${CALIBRATION2_MIN_HUNDREDTHS}) id(calibration2_hundredths)--;
+              - lvgl.slider.update:
+                  id: calibration2_slider
+                  value: !lambda return id(calibration2_hundredths);
+              - lvgl.label.update:
+                  id: calibration2_label
+                  text: !lambda |-
+                    static char buf[12];
+                    snprintf(buf, sizeof(buf), "%.2f kg", id(calibration2_hundredths) / 100.0f);
+                    return buf;
+        - slider:
+            id: calibration2_slider
+            x: 14
+            y: 72
+            width: 220
+            height: 15
+            min_value: ${CALIBRATION2_MIN_HUNDREDTHS}
+            max_value: ${CALIBRATION2_MAX_HUNDREDTHS}
+            value: 1000
+            bg_color: !lambda return lv_color_hex(id(color_25));
+            indicator:
+              bg_color: !lambda return lv_color_hex(id(color_50));
+            knob:
+              bg_color: !lambda return lv_color_hex(id(color_100));
+            on_value:
+              - lambda: id(calibration2_hundredths) = x;
+              - lvgl.label.update:
+                  id: calibration2_label
+                  text: !lambda |-
+                    static char buf[12];
+                    snprintf(buf, sizeof(buf), "%.2f kg", id(calibration2_hundredths) / 100.0f);
+                    return buf;
+        - button:
+            id: calibration2_ok_button
+            x: 14
+            y: 136
+            width: 292
+            height: 36
+            pad_all: 0
+            scrollable: false
+            radius: 0
+            bg_opa: COVER
+            bg_color: !lambda return lv_color_hex(id(color_50));
+            shadow_color: !lambda return lv_color_hex(id(color_25));
+            widgets:
+              - label:
+                  id: calibration2_ok_button_label
+                  align: CENTER
+                  width: 292
+                  text_font: MONTSERRAT_20
+                  text_align: CENTER
+                  text_color: !lambda return lv_color_hex(id(color_100));
+                  bg_color: !lambda return lv_color_hex(id(color_50));
+                  text: "Continue"
+            on_click:
+              - lvgl.page.show: calibration3_page
+
+  # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+    - id: calibration3_page
+      skip: true
+      bg_color: 0
+      bg_opa: COVER
+      pad_all: 0
+      scrollable: false
+      widgets:
+        - label:
+            id: calibration3_label
+            x: 14
+            y: 61
+            width: 292
+            height: 56
+            text_font: MONTSERRAT_20
+            text_align: CENTER
+            long_mode: WRAP
+            bg_opa: TRANSP
+            text_color: !lambda return lv_color_hex(id(color_100));
+            text: "Place new bottle on the GasBuddy"
+        - button:
+            id: calibration3_abort_button
+            x: 14
+            y: 136
+            width: 142
+            height: 36
+            pad_all: 0
+            scrollable: false
+            radius: 0
+            bg_opa: COVER
+            bg_color: !lambda return lv_color_hex(id(color_50));
+            shadow_color: !lambda return lv_color_hex(id(color_25));
+            widgets:
+              - label:
+                  id: calibration3_abort_button_label
+                  align: CENTER
+                  width: 142
+                  text_font: MONTSERRAT_20
+                  text_align: CENTER
+                  text_color: !lambda return lv_color_hex(id(color_100));
+                  bg_color: !lambda return lv_color_hex(id(color_50));
+                  text: "Abort"
+            on_click:
+              - lvgl.page.show: scale_page
+        - button:
+            id: calibration3_ok_button
+            x: 164
+            y: 136
+            width: 142
+            height: 36
+            pad_all: 0
+            scrollable: false
+            radius: 0
+            bg_opa: COVER
+            bg_color: !lambda return lv_color_hex(id(color_50));
+            shadow_color: !lambda return lv_color_hex(id(color_25));
+            widgets:
+              - label:
+                  id: calibration3_ok_button_label
+                  align: CENTER
+                  width: 142
+                  text_font: MONTSERRAT_20
+                  text_align: CENTER
+                  text_color: !lambda return lv_color_hex(id(color_100));
+                  bg_color: !lambda return lv_color_hex(id(color_50));
+                  text: "Done"
+            on_click:
+              - lvgl.page.show: calibration4_page
+
+  # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+    - id: calibration4_page
+      skip: true
+      bg_color: 0
+      bg_opa: COVER
+      pad_all: 0
+      scrollable: false
+      on_load:
+        then:
+          - lambda: |-
+              if (id(uart_gas_value) >= 0) {
+                id(settings_scale_raw_zero_persistent) = id(settings_scale_raw_zero);
+                id(settings_scale_bottle_kg_persistent) = id(settings_scale_bottle_kg);
+                id(calibration2_hundredths_persisted) = id(calibration2_hundredths);
+                id(settings_scale_brutto_persistent) = id(uart_gas_value);
+              }
+      widgets:
+        - label:
+            id: calibration4_label
+            x: 14
+            y: 32
+            width: 292
+            height: 100
+            text_font: MONTSERRAT_20
+            text_align: CENTER
+            long_mode: WRAP
+            bg_opa: TRANSP
+            text_color: !lambda return lv_color_hex(id(color_100));
+            text: "Persisting the settings may\ntake up to 60 seconds!\nSo wait a bit before powering off the device."
+        - button:
+            id: calibration4_understood_button
+            x: 14
+            y: 136
+            width: 292
+            height: 36
+            pad_all: 0
+            scrollable: false
+            radius: 0
+            bg_opa: COVER
+            bg_color: !lambda return lv_color_hex(id(color_50));
+            shadow_color: !lambda return lv_color_hex(id(color_25));
+            on_click:
+              - lvgl.page.show: scale_page
+            widgets:
+              - label:
+                  id: calibration4_understood_button_label
+                  align: CENTER
+                  width: 292
+                  text_font: MONTSERRAT_20
+                  text_align: CENTER
+                  text_color: !lambda return lv_color_hex(id(color_100));
+                  bg_color: !lambda return lv_color_hex(id(color_50));
+                  text: "Understood"
 
   # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
     - id: settings_page
@@ -974,42 +1465,19 @@ lvgl:
       widgets:
         - obj:
             x: 0
-            y: 0
-            width: 304
-            height: 172
+            y: 30
+            width: 320
+            height: 142
             bg_color: 0
             bg_opa: COVER
             pad_all: 0
             border_width: 0
             radius: 0
             widgets:
-              - obj:  # only for drawing the horizontal divider
-                  id: settings_bar
-                  x: 0
-                  y: 0
-                  width: 304
-                  height: 20
-                  border_color: !lambda return lv_color_hex(id(color_75));
-                  border_width: 10
-                  border_side:
-                    - TOP
-                  radius: 10
-                  pad_all: 0
-                  bg_color: 0
-              - label:
-                  id: settings_title
-                  x: 113
-                  y: -4
-                  width: 78
-                  bg_opa: COVER
-                  text_font: MONTSERRAT_BOLD_FONT_14
-                  text_align: CENTER
-                  text_color: !lambda return lv_color_hex(id(color_75));
-                  text: "DETAILS"
               - label:
                   id: current_wifi_ip_label1
                   x: 0
-                  y: 15
+                  y: 0
                   width: 160
                   text_align: LEFT
                   text_color: !lambda return lv_color_hex(id(color_100));
@@ -1018,8 +1486,8 @@ lvgl:
               - label:
                   id: current_wifi_ip_label
                   x: 170
-                  y: 15
-                  width: 130
+                  y: 0
+                  width: 146
                   text_align: LEFT
                   text_color: !lambda return lv_color_hex(id(color_100));
                   text_font: MONTSERRAT_18
@@ -1028,7 +1496,7 @@ lvgl:
               - label:
                   id: current_version_label1
                   x: 0
-                  y: 36
+                  y: 21
                   width: 160
                   text_align: LEFT
                   text_color: !lambda return lv_color_hex(id(color_100));
@@ -1037,40 +1505,39 @@ lvgl:
               - label:
                   id: current_version_label2
                   x: 170
-                  y: 36
-                  width: 130
+                  y: 21
+                  width: 146
                   text_align: LEFT
                   text_color: !lambda return lv_color_hex(id(color_100));
                   text_font: MONTSERRAT_18
                   text: ${version}
               - label:
-                  id: gas_weight_label1
+                  id: uart_raw_value1
                   x: 0
-                  y: 57
+                  y: 42
                   width: 160
                   text_align: LEFT
                   text_color: !lambda return lv_color_hex(id(color_100));
                   text_font: MONTSERRAT_18
-                  text: "Gas bottle weight"
+                  text: "GasBuddy raw"
               - label:
-                  id: gas_weight_label
+                  id: uart_raw_value
                   x: 170
-                  y: 57
-                  width: 130
+                  y: 42
+                  width: 146
                   text_font: MONTSERRAT_18
                   text_color: !lambda return lv_color_hex(id(color_100));
                   text_align: LEFT
                   text: !lambda |-
-                    int v = id(gas_weight);
-                    if( v < 0) {
-                      return " ";
+                    int v = id(uart_gas_value);
+                    if (v < 0) {
+                      return "no data";
                     }
-                    int v2 = id(gas_percent);
-                    return (to_string(v) + " g (" + to_string(v2) + "%)").c_str();
+                    return to_string(v).c_str();
               - label:
                   id: soc_warning_label1
                   x: 0
-                  y: 78
+                  y: 63
                   width: 160
                   text_align: LEFT
                   text_color: !lambda return lv_color_hex(id(color_100));
@@ -1079,8 +1546,8 @@ lvgl:
               - label:
                   id: soc_warning_label2
                   x: 170
-                  y: 78
-                  width: 130
+                  y: 63
+                  width: 146
                   text_align: LEFT
                   text_color: !lambda return lv_color_hex(id(color_100));
                   text_font: MONTSERRAT_18
@@ -1090,7 +1557,7 @@ lvgl:
               - label:
                   id: gas_warning_label1
                   x: 0
-                  y: 101
+                  y: 86
                   width: 160
                   text_align: LEFT
                   text_color: !lambda return lv_color_hex(id(color_100));
@@ -1099,8 +1566,8 @@ lvgl:
               - label:
                   id: gas_warning_label2
                   x: 170
-                  y: 101
-                  width: 130
+                  y: 86
+                  width: 146
                   text_align: LEFT
                   text_color: !lambda return lv_color_hex(id(color_100));
                   text_font: MONTSERRAT_18
@@ -1110,64 +1577,64 @@ lvgl:
               - label:
                   id: color_100_label
                   x: 0
-                  y: 152
-                  width: 38
+                  y: 122
+                  width: 40
                   height: 20
                   bg_color: !lambda return lv_color_hex(id(color_100));
                   text: " "
               - label:
                   id: color_75_label
-                  x: 38
-                  y: 152
-                  width: 38
+                  x: 40
+                  y: 122
+                  width: 40
                   height: 20
                   bg_color: !lambda return lv_color_hex(id(color_75));
                   text: " "
               - label:
                   id: color_50_label
-                  x: 76
-                  y: 152
-                  width: 38
+                  x: 80
+                  y: 122
+                  width: 40
                   height: 20
                   bg_color: !lambda return lv_color_hex(id(color_50));
                   text: " "
               - label:
                   id: color_25_label
-                  x: 114
-                  y: 152
-                  width: 38
+                  x: 120
+                  y: 122
+                  width: 40
                   height: 20
                   bg_color: !lambda return lv_color_hex(id(color_25));
                   text: " "
               - label:
                   id: color_00_label
-                  x: 152
-                  y: 152
-                  width: 38
+                  x: 160
+                  y: 122
+                  width: 40
                   height: 20
                   bg_color: !lambda return lv_color_hex(id(color_00));
                   text: " "
               - label:
                   id: color_good_label
-                  x: 190
-                  y: 152
-                  width: 38
+                  x: 200
+                  y: 122
+                  width: 40
                   height: 20
                   bg_color: !lambda return lv_color_hex(id(color_good));
                   text: " "
               - label:
                   id: color_bad_label
-                  x: 228
-                  y: 152
-                  width: 38
+                  x: 240
+                  y: 122
+                  width: 40
                   height: 20
                   bg_color: !lambda return lv_color_hex(id(color_bad));
                   text: " "
               - label:
                   id: color_light_label
-                  x: 266
-                  y: 152
-                  width: 38
+                  x: 280
+                  y: 122
+                  width: 40
                   height: 20
                   bg_color: !lambda return lv_color_hex(id(color_light));
                   text: " "
@@ -1175,12 +1642,35 @@ lvgl:
                   x: 0
                   y: 0
                   bg_opa: TRANSP
-                  width: 304
-                  height: 172
+                  width: 320
+                  height: 142
                   text: " "
                   clickable: True
                   on_press:
                     - script.execute: toggle_settings_page
+              - button:
+                  id: calibration_button
+                  x: 258
+                  y: 42
+                  width: 58
+                  height: 66
+                  pad_all: 0
+                  scrollable: false
+                  radius: 0
+                  bg_opa: COVER
+                  bg_color: !lambda return lv_color_hex(id(color_50));
+                  shadow_color: !lambda return lv_color_hex(id(color_25));
+                  widgets:
+                    - label:
+                        id: calibration_button_label
+                        align: CENTER
+                        text_font: ICON_FONT_30
+                        text_align: CENTER
+                        text_color: !lambda return lv_color_hex(id(color_100));
+                        bg_color: !lambda return lv_color_hex(id(color_50));
+                        text: "\U000F0493"
+                  on_click:
+                    - lvgl.page.show: calibration0_page
 
 
 sensor:
@@ -1217,8 +1707,10 @@ sensor:
           max_value: 100.0
     update_interval: 4s        # new value after 4s*15(=window size) = 60s!
     on_value:
-      - lambda: id(battery_soc_value) = x;
-      - lvgl.widget.refresh: [battery_symbol, battery_symbol_fix]
+      - lambda: |-
+          id(battery_soc_value) = x;
+          id(battery_soc_seen) = true;
+      - lvgl.widget.refresh: battery_symbol
 
   - platform: wifi_signal
     name: "WiFi Signal Strength ESP32"
@@ -1233,7 +1725,7 @@ sensor:
 
   - platform: template
     name: "Gasbuddy level in g"
-    id: g32_gas_weight
+    id: gasbuddy_gas_weight
     device_class: weight
     state_class: measurement
     unit_of_measurement: g
@@ -1247,29 +1739,82 @@ sensor:
               return 11000;
             }
             return int(x);
-      - lvgl.widget.refresh: gas_weight_label
+      - lvgl.widget.refresh: uart_raw_value
 
   - platform: template
     name: "Gasbuddy level in %"
-    id: g32_gas_percent
+    id: gasbuddy_gas_percent
     state_class: measurement
     unit_of_measurement: "%"
     icon: "mdi:gas-cylinder"
+    update_interval: never
+    lambda: |-
+      return id(gas_percent);
     on_value:
       - globals.set:
           id: gas_percent
           value: !lambda |-
-            if(x > 100) {
+            int percent = int(x);
+            if (percent < 0) {
+              return 0;
+            }
+            if (percent > 100) {
               return 100;
             }
-            return int(x);
-      - lvgl.widget.refresh: [gas_percent_bar]
+            return percent;
+      - lambda: id(gas_percent_seen) = true;
+      - lvgl.widget.refresh: [gas_percent_bar, uart_raw_value, warning_on_label]
 
 binary_sensor:
   - platform: status
     name: "Status ESP"
 
 script:
+  # Remaining gas from the last saved calibration. UART readings are raw
+  # counts, not grams. Zero is the empty platform, brutto is the full bottle.
+  # The known empty-bottle and fill masses only mark where 0% sits in that span.
+  - id: update_remaining_gas
+    then:
+      - lambda: |-
+          if (id(uart_gas_value) < 0) {
+            return;
+          }
+          const int64_t zero = id(settings_scale_raw_zero_persistent);
+          const int64_t brutto = id(settings_scale_brutto_persistent);
+          const int64_t raw = id(uart_gas_value);
+          const int64_t span = brutto - zero;
+          const int64_t empty_h = id(calibration2_hundredths_persisted);
+          const int64_t fill_h = (int64_t) id(settings_scale_bottle_kg_persistent) * 100;
+          const int64_t full_h = empty_h + fill_h;
+          if (span <= 0 || fill_h <= 0 || full_h <= 0) {
+            ESP_LOGI("uart_gasbuddy", "Calculated: no span (raw %d zero %d brutto %d)", (int) raw, (int) zero, (int) brutto);
+            return;
+          }
+          const int64_t empty_count = zero + span * empty_h / full_h;
+          const int64_t gas_span = brutto - empty_count;
+          if (gas_span <= 0) {
+            ESP_LOGI("uart_gasbuddy", "Calculated: no gas span (raw %d zero %d brutto %d)", (int) raw, (int) zero, (int) brutto);
+            return;
+          }
+          int64_t gas_count = raw - empty_count;
+          if (gas_count < 0) {
+            gas_count = 0;
+          }
+          if (gas_count > gas_span) {
+            gas_count = gas_span;
+          }
+          int percent = (int) (gas_count * 100 / gas_span);
+          if (percent < 0) {
+            percent = 0;
+          }
+          if (percent > 100) {
+            percent = 100;
+          }
+          const int gas_g = (int) (fill_h * 10 * percent / 100);
+          ESP_LOGI("uart_gasbuddy", "Calculated: %d%% (%d g) raw %d zero %d brutto %d empty-count %d", percent, gas_g, (int) raw, (int) zero, (int) brutto, (int) empty_count);
+          id(gasbuddy_gas_weight).publish_state(gas_g);
+          id(gasbuddy_gas_percent).publish_state(percent);
+
   - id: hide_boot_screen
     then:
       - if:
@@ -1279,7 +1824,7 @@ script:
             - lambda: |-
                 id(apply_color_scheme).execute();
             - lvgl.widget.hide: boot_screen
-            - lvgl.widget.show: [status_bar_right]
+            - lvgl.widget.show: [status_bar_top]
             - lambda: |-
                 int idx = id(settings_color_scheme_idx_persistent);
                 std::string name = "white";
@@ -1371,7 +1916,6 @@ script:
       # Chunk 1: Status bar widgets
       - lvgl.widget.refresh:
           - battery_symbol
-          - battery_symbol_fix
           - wifi_connect_label
           - warning_on_label
       - delay: 1ms
@@ -1380,22 +1924,46 @@ script:
       - lvgl.widget.refresh:
           - gas_level_obj
           - gas_percent_bar
+          - calibration_button
+          - calibration_button_label
+          - calibration0_label
+          - calibration0_next_button
+          - calibration0_next_button_label
+          - calibration1_label
+          - calibration1_next_button
+          - calibration1_next_button_label
+          - calibration2_label
+          - calibration2_slider
+          - calibration2_inc_button
+          - calibration2_inc_button_label
+          - calibration2_dec_button
+          - calibration2_dec_button_label
+          - calibration2_ok_button
+          - calibration2_ok_button_label
+          - calibration3_label
+          - calibration3_abort_button
+          - calibration3_abort_button_label
+          - calibration3_ok_button
+          - calibration3_ok_button_label
+          - calibration4_label
+          - calibration4_understood_button
+          - calibration4_understood_button_label
+          - calibration_bottle_kg_button_0
+          - calibration_bottle_kg_button_0_label
+          - calibration_bottle_kg_button_1
+          - calibration_bottle_kg_button_1_label
+          - calibration_bottle_kg_button_2
+          - calibration_bottle_kg_button_2_label
       - delay: 1ms
 
-      - lvgl.widget.refresh:
-          - scale_bar
-          - scale_title
-      - delay: 1ms
       # Chunk: Settings page
       - lvgl.widget.refresh:
-          - settings_bar
-          - settings_title
           - current_wifi_ip_label1
           - current_wifi_ip_label
           - current_version_label1
           - current_version_label2
-          - gas_weight_label1
-          - gas_weight_label
+          - uart_raw_value1
+          - uart_raw_value
           - soc_warning_label1
           - soc_warning_label2
           - gas_warning_label1
@@ -1410,13 +1978,72 @@ script:
           - color_light_label
       - delay: 1ms
 
+      # Nested slider parts do not pick up a scheme change from widget refresh.
+      - lambda: |-
+          lv_obj_set_style_bg_color(calibration2_slider, lv_color_hex(id(color_50)), LV_PART_INDICATOR);
+          lv_obj_set_style_bg_color(calibration2_slider, lv_color_hex(id(color_100)), LV_PART_KNOB);
+          lv_obj_set_style_text_color(calibration2_label, lv_color_hex(id(color_100)), LV_PART_MAIN);
+      - script.execute: style_bottle_kg_buttons
+
+  - id: style_bottle_kg_buttons
+    then:
+      # checked: styles are applied once at startup, before the scheme exists,
+      # and widget refresh does not update them.
+      - lambda: |-
+          lv_obj_t *buttons[] = {
+            calibration_bottle_kg_button_0,
+            calibration_bottle_kg_button_1,
+            calibration_bottle_kg_button_2,
+          };
+          const lv_color_t fill = lv_color_hex(id(color_50));
+          const lv_style_selector_t states[] = {
+            static_cast<lv_style_selector_t>(LV_PART_MAIN | LV_STATE_CHECKED),
+            static_cast<lv_style_selector_t>(LV_PART_MAIN | LV_STATE_PRESSED),
+            static_cast<lv_style_selector_t>(LV_PART_MAIN | LV_STATE_CHECKED | LV_STATE_PRESSED),
+          };
+          for (lv_obj_t *button : buttons) {
+            for (lv_style_selector_t state : states) {
+              lv_obj_set_style_bg_color(button, fill, state);
+              lv_obj_set_style_bg_opa(button, LV_OPA_COVER, state);
+              lv_obj_set_style_border_color(button, fill, state);
+              lv_obj_set_style_border_width(button, 1, state);
+              lv_obj_set_style_border_opa(button, LV_OPA_COVER, state);
+            }
+          }
+          lv_obj_set_style_bg_opa(calibration_bottle_kg_button_0_label, LV_OPA_TRANSP, LV_PART_MAIN);
+          lv_obj_set_style_bg_opa(calibration_bottle_kg_button_1_label, LV_OPA_TRANSP, LV_PART_MAIN);
+          lv_obj_set_style_bg_opa(calibration_bottle_kg_button_2_label, LV_OPA_TRANSP, LV_PART_MAIN);
+
+  - id: show_scale_bottle_kg_selection
+    then:
+      - lvgl.widget.update:
+          id: calibration_bottle_kg_button_0
+          state:
+            checked: !lambda return id(settings_scale_bottle_kg) == id(scale_bottle_kg_options)[0];
+      - lvgl.widget.update:
+          id: calibration_bottle_kg_button_1
+          state:
+            checked: !lambda return id(settings_scale_bottle_kg) == id(scale_bottle_kg_options)[1];
+      - lvgl.widget.update:
+          id: calibration_bottle_kg_button_2
+          state:
+            checked: !lambda return id(settings_scale_bottle_kg) == id(scale_bottle_kg_options)[2];
+      - lvgl.widget.refresh:
+          - calibration_bottle_kg_button_0
+          - calibration_bottle_kg_button_0_label
+          - calibration_bottle_kg_button_1
+          - calibration_bottle_kg_button_1_label
+          - calibration_bottle_kg_button_2
+          - calibration_bottle_kg_button_2_label
+      - script.execute: style_bottle_kg_buttons
+
   - id: toggle_settings_page
     then:
       - if:
           condition:
             or:
-              - lambda: 'return lv_scr_act() == id(arcs_page)->obj;'
+              - lambda: 'return lv_scr_act() == id(scale_page)->obj;'
           then:
             - lvgl.page.show: settings_page
           else:
-            - lvgl.page.show: arcs_page
+            - lvgl.page.show: scale_page
