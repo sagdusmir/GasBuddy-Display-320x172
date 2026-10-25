@@ -64,6 +64,25 @@ substitutions:
   CALIBRATION2_MIN_HUNDREDTHS: "350"
   CALIBRATION2_MAX_HUNDREDTHS: "1500"
 
+  # 0: remaining gas comes from the scale. 1: the calculation uses a raw
+  # count that falls over time, so the display shows a bottle losing gas.
+  DEMO_MODE: "0"
+
+  # Demo starts at 90% full and only falls. This is the top of the random
+  # consumption range in g/h (the rate is uniform from 0 up to 4× this
+  # value). Each rate is held for 30–75 s, with a smaller step every poll,
+  # so the g/h estimate and the time-left label keep moving.
+  DEMO_GRAMS_PER_HOUR: "300"
+
+  # How many remaining-gas readings form the g/h estimate. The scale is
+  # polled every 5 s, so 7 readings span about 30 s. Minimum is 2.
+  GAS_RATE_SAMPLES: "7"
+
+  # g/h below this hides the weight-page rate cluster. A rate at or
+  # above it is shown with the fire icon, segment digits,
+  # and "g/h". Time left uses the same threshold.
+  GAS_RATE_STABLE_LIMIT: "100"
+
   # interval for alarm sound
   Beeper_interval: "5s"
 
@@ -393,6 +412,29 @@ globals:
     type: int32_t
     initial_value: '-1'
 
+  # Bumped when the calibration wizard closes with Done, so the g/h
+  # window drops samples from the previous calibration.
+  - id: gas_rate_epoch
+    type: int
+    restore_value: no
+    initial_value: '0'
+  - id: gas_rate_g_per_h
+    type: float
+    restore_value: no
+    initial_value: '0'
+  - id: gas_rate_known
+    type: bool
+    restore_value: no
+    initial_value: 'false'
+  - id: gas_time_h
+    type: float
+    restore_value: no
+    initial_value: '0'
+  - id: gas_time_known
+    type: bool
+    restore_value: no
+    initial_value: 'false'
+
   # Raw GasBuddy UART reading (reply bytes [2:3]). Not published.
   - id: uart_gas_value
     type: int32_t
@@ -565,7 +607,7 @@ number:
     initial_value: 20.0
     on_value:
       - lambda: id(settings_min_gas_value_persistent) = int(x);
-      - lvgl.widget.refresh: [warning_on_label, gas_percent_bar, gas_warning_label2]
+      - lvgl.widget.refresh: [warning_on_label, gas_percent_bar, gas_warning_label2, gas_warning_mark]
 
   - platform: template
     name: "Min Battery SOC Value"
@@ -586,9 +628,67 @@ font:
     id: ICON_FONT_30
     size: 30
     glyphs:
-      - "\U000F15CB" # mdi-numeric-positive-1
-      - "\U000F1052" # mdi-numeric-negative-1
+      - "\U000F0415" # mdi-plus
+      - "\U000F0374" # mdi-minus
+  - file: 'https://raw.githubusercontent.com/sagdusmir/G32-Grill-Display-320x172-BT/main/fonts/MaterialDesign-Webfont/materialdesignicons-webfont.ttf'
+    # file: 'fonts/MaterialDesign-Webfont/materialdesignicons-webfont.ttf'
+    id: ICON_FONT_39
+    size: 39
+    glyphs:
+      - "\U000F1358" # mdi-propane-tank-outline
+  - file: 'https://raw.githubusercontent.com/sagdusmir/G32-Grill-Display-320x172-BT/main/fonts/MaterialDesign-Webfont/materialdesignicons-webfont.ttf'
+    # file: 'fonts/MaterialDesign-Webfont/materialdesignicons-webfont.ttf'
+    id: ICON_FONT_27
+    size: 27
+    glyphs:
       - "\U000F0493" # mdi-cog
+  - file: 'https://raw.githubusercontent.com/sagdusmir/G32-Grill-Display-320x172-BT/main/fonts/MaterialDesign-Webfont/materialdesignicons-webfont.ttf'
+    # file: 'fonts/MaterialDesign-Webfont/materialdesignicons-webfont.ttf'
+    id: ICON_FONT_29
+    size: 29
+    glyphs:
+      - "\U000F0D3F" # mdi-weight-gram
+  - file: 'https://raw.githubusercontent.com/sagdusmir/G32-Grill-Display-320x172-BT/main/fonts/DESG07/DSEG7ClassicMini-Bold.ttf'
+    # file: 'fonts/DESG07/DSEG7ClassicMini-Bold.ttf'
+    id: SEGMENT_FONT_65
+    size: 65
+    glyphs:
+      - "0"
+      - "1"
+      - "2"
+      - "3"
+      - "4"
+      - "5"
+      - "6"
+      - "7"
+      - "8"
+      - "9"
+      - "-"
+      - " "
+  - file: 'https://raw.githubusercontent.com/sagdusmir/G32-Grill-Display-320x172-BT/main/fonts/DESG07/DSEG7ClassicMini-Bold.ttf'
+    # file: 'fonts/DESG07/DSEG7ClassicMini-Bold.ttf'
+    id: SEGMENT_FONT_24
+    size: 24
+    glyphs:
+      - "0"
+      - "1"
+      - "2"
+      - "3"
+      - "4"
+      - "5"
+      - "6"
+      - "7"
+      - "8"
+      - "9"
+      - "."
+      - "-"
+  - file: 'https://raw.githubusercontent.com/sagdusmir/G32-Grill-Display-320x172-BT/main/fonts/MaterialDesign-Webfont/materialdesignicons-webfont.ttf'
+    # file: 'fonts/MaterialDesign-Webfont/materialdesignicons-webfont.ttf'
+    id: ICON_FONT_22
+    size: 22
+    glyphs:
+      - "\U000F06AD" # mdi-timer-sand-empty
+      - "\U000F0238" # mdi-fire
   - file: 'https://raw.githubusercontent.com/sagdusmir/G32-Grill-Display-320x172-BT/main/fonts/Montserrat/Montserrat-Bold.ttf'
     # file: 'fonts/Montserrat/Montserrat-Bold.ttf'
     id: MONTSERRAT_BOLD_FONT_18
@@ -663,6 +763,9 @@ lvgl:
       width: 60
       selected:
         text_font: MONTSERRAT_BOLD_FONT_18
+    button:
+      border_width: 0
+      radius: 0
     slider:
       bg_opa: COVER
       radius: 0
@@ -820,31 +923,113 @@ lvgl:
 
   pages:
     - id: scale_page
-      bg_color: 0x800080  # temporary debug color
+      bg_color: 0x000000
       bg_opa: COVER
       pad_all: 0
       scrollable: false
       widgets:
+        - label:
+            id: weight_label_background
+            align: TOP_LEFT
+            x: 0
+            y: 34
+            width: 265
+            bg_color: 0x000000
+            bg_opa: COVER
+            pad_all: 0
+            border_width: 0
+            text_font: SEGMENT_FONT_65
+            text_align: RIGHT
+            text_color: !lambda return lv_color_hex(id(color_25));
+            text: "18888"
+        - label:
+            id: weight_label
+            align: TOP_LEFT
+            x: 0
+            y: 34
+            width: 265
+            bg_opa: TRANSP
+            pad_all: 0
+            border_width: 0
+            text_font: SEGMENT_FONT_65
+            text_align: RIGHT
+            text_color: !lambda return lv_color_hex(id(color_100));
+            text: !lambda |-
+              int v = id(gas_weight);
+              if (v < 0) {
+                return "---";
+              }
+              return to_string(v).c_str();
+        - label:
+            id: weight_unit
+            align: TOP_LEFT
+            x: 277
+            y: 73
+            width: 29
+            bg_color: 0x000000
+            bg_opa: COVER
+            pad_all: 0
+            border_width: 0
+            text_font: ICON_FONT_29
+            text_align: RIGHT
+            text_color: !lambda return lv_color_hex(id(color_100));
+            text: "\U000F0D3F"
         - obj:
             id: gas_level_obj
             x: 14
-            y: 103
+            y: 111
             width: 292
-            height: 24
+            height: 18
             pad_all: 0
             scrollable: false
-            bg_color: 0
-            border_width: 1
-            border_color: !lambda return lv_color_hex(id(color_50));
+            overflow_visible: true
+            bg_opa: TRANSP
+            border_width: 0
             radius: 0
             hidden: !lambda |-
               return false;
             widgets:
+              # Old frame fill. The warning mark is drawn after this, so its
+              # lips stay visible, and the bar and dividers cover the middle.
+              - obj:
+                  x: 0
+                  y: 2
+                  width: 292
+                  height: 14
+                  bg_color: 0x000000
+                  bg_opa: COVER
+                  border_width: 0
+                  radius: 0
+                  pad_all: 0
+                  scrollable: false
+                  clickable: false
+              - obj:
+                  id: gas_warning_mark
+                  x: -2
+                  y: 0
+                  height: 18
+                  width: !lambda |-
+                    int level = id(settings_min_gas_value_persistent);
+                    if (level < 0) {
+                      level = 0;
+                    }
+                    if (level > 100) {
+                      level = 100;
+                    }
+                    return level * 290 / 100 + 3;
+                  hidden: !lambda |-
+                    return id(settings_min_gas_value_persistent) <= 0;
+                  bg_opa: COVER
+                  bg_color: !lambda return lv_color_hex(id(color_100));
+                  border_width: 0
+                  radius: 0
+                  pad_all: 0
+                  scrollable: false
               - bar:
                   id: gas_percent_bar
                   x: 1
-                  y: 2
-                  height: 20
+                  y: 4
+                  height: 10
                   width: 290
                   radius: 0
                   min_value: 1
@@ -872,108 +1057,293 @@ lvgl:
                       lv_obj_set_style_bg_color(id(gas_percent_bar), lv_color_hex(id(color_good)), LV_PART_INDICATOR);
                     }
                     return z;
-              # Each cell is 29px. The first nine boxes are 30px wide so the
-              # 1px borders overlap and each divider stays a single pixel.
+              # 2px border on every side. The first nine boxes are 2px wider
+              # than the step, so neighboring borders share those pixels and
+              # each vertical divider stays 2px. The boxes sit 2px below the
+              # top of gas_level_obj so the warning mark shows above and below.
               - label:  # 1/10
                   x: 1
-                  y: 1
-                  width: 30
-                  height: 22
+                  y: 2
+                  width: 31
+                  height: 14
                   bg_opa: TRANSP
-                  border_width: 1
+                  border_width: 2
                   radius: 0
                   border_color: 0
                   text: " "
               - label:  # 2/10
                   x: 30
-                  y: 1
-                  width: 30
-                  height: 22
+                  y: 2
+                  width: 31
+                  height: 14
                   bg_opa: TRANSP
-                  border_width: 1
+                  border_width: 2
                   radius: 0
                   border_color: 0
                   text: " "
               - label:  # 3/10
                   x: 59
-                  y: 1
-                  width: 30
-                  height: 22
+                  y: 2
+                  width: 31
+                  height: 14
                   bg_opa: TRANSP
-                  border_width: 1
+                  border_width: 2
                   radius: 0
                   border_color: 0
                   text: " "
               - label:  # 4/10
                   x: 88
-                  y: 1
-                  width: 30
-                  height: 22
+                  y: 2
+                  width: 31
+                  height: 14
                   bg_opa: TRANSP
-                  border_width: 1
+                  border_width: 2
                   radius: 0
                   border_color: 0
                   text: " "
               - label:  # 5/10
                   x: 117
-                  y: 1
-                  width: 30
-                  height: 22
+                  y: 2
+                  width: 31
+                  height: 14
                   bg_opa: TRANSP
-                  border_width: 1
+                  border_width: 2
                   radius: 0
                   border_color: 0
                   text: " "
               - label:  # 6/10
                   x: 146
-                  y: 1
-                  width: 30
-                  height: 22
+                  y: 2
+                  width: 31
+                  height: 14
                   bg_opa: TRANSP
-                  border_width: 1
+                  border_width: 2
                   radius: 0
                   border_color: 0
                   text: " "
               - label:  # 7/10
                   x: 175
-                  y: 1
-                  width: 30
-                  height: 22
+                  y: 2
+                  width: 31
+                  height: 14
                   bg_opa: TRANSP
-                  border_width: 1
+                  border_width: 2
                   radius: 0
                   border_color: 0
                   text: " "
               - label:  # 8/10
                   x: 204
-                  y: 1
-                  width: 30
-                  height: 22
+                  y: 2
+                  width: 31
+                  height: 14
                   bg_opa: TRANSP
-                  border_width: 1
+                  border_width: 2
                   radius: 0
                   border_color: 0
                   text: " "
               - label:  # 9/10
                   x: 233
-                  y: 1
-                  width: 30
-                  height: 22
+                  y: 2
+                  width: 31
+                  height: 14
                   bg_opa: TRANSP
-                  border_width: 1
+                  border_width: 2
                   radius: 0
                   border_color: 0
                   text: " "
               - label:  # 10/10
                   x: 262
-                  y: 1
+                  y: 2
                   width: 29
-                  height: 22
+                  height: 14
                   bg_opa: TRANSP
-                  border_width: 1
+                  border_width: 2
                   radius: 0
                   border_color: 0
                   text: " "
+        # Fire icon, ghost "1888", live g/h, then Montserrat "g/h".
+        # The value is right-aligned so unused leading ghost digits stay visible.
+        - label:
+            id: weight_rate_icon
+            align: TOP_LEFT
+            x: 12
+            y: 147
+            width: 22
+            bg_color: 0x000000
+            bg_opa: COVER
+            pad_all: 0
+            border_width: 0
+            text_font: ICON_FONT_22
+            text_align: LEFT
+            text_color: !lambda return lv_color_hex(id(color_100));
+            hidden: !lambda |-
+              if (!id(gas_rate_known)) {
+                return true;
+              }
+              return id(gas_rate_g_per_h) < ${GAS_RATE_STABLE_LIMIT};
+            text: "\U000F0238"
+        - label:
+            id: weight_rate_background
+            align: TOP_LEFT
+            x: 23
+            y: 144
+            width: 80
+            bg_color: 0x000000
+            bg_opa: TRANSP
+            pad_all: 0
+            border_width: 0
+            text_font: SEGMENT_FONT_24
+            text_align: RIGHT
+            text_color: !lambda return lv_color_hex(id(color_25));
+            hidden: !lambda |-
+              if (!id(gas_rate_known)) {
+                return true;
+              }
+              return id(gas_rate_g_per_h) < ${GAS_RATE_STABLE_LIMIT};
+            text: "1888"
+        - label:
+            id: weight_rate_value
+            align: TOP_LEFT
+            x: 23
+            y: 144
+            width: 80
+            bg_opa: TRANSP
+            pad_all: 0
+            border_width: 0
+            text_font: SEGMENT_FONT_24
+            text_align: RIGHT
+            text_color: !lambda return lv_color_hex(id(color_100));
+            hidden: !lambda |-
+              if (!id(gas_rate_known)) {
+                return true;
+              }
+              return id(gas_rate_g_per_h) < ${GAS_RATE_STABLE_LIMIT};
+            text: !lambda |-
+              if (!id(gas_rate_known) || id(gas_rate_g_per_h) < ${GAS_RATE_STABLE_LIMIT}) {
+                return "";
+              }
+              int grams = (int) (id(gas_rate_g_per_h) + 0.5f);
+              if (grams < 0) {
+                grams = 0;
+              }
+              if (grams > 9999) {
+                grams = 9999;
+              }
+              static char buf[8];
+              snprintf(buf, sizeof(buf), "%d", grams);
+              return buf;
+        - label:
+            id: weight_rate_unit
+            align: TOP_LEFT
+            x: 105
+            y: 151
+            width: 40
+            bg_color: 0x000000
+            bg_opa: COVER
+            pad_all: 0
+            border_width: 0
+            text_font: MONTSERRAT_18
+            text_align: LEFT
+            text_color: !lambda return lv_color_hex(id(color_100));
+            hidden: !lambda |-
+              if (!id(gas_rate_known)) {
+                return true;
+              }
+              return id(gas_rate_g_per_h) < ${GAS_RATE_STABLE_LIMIT};
+            text: "g/h"
+        # Ghost "88.8", live hours on top, then "h" and the empty hourglass.
+        # The decimal is zero-width, and both labels are right-aligned, so
+        # "6.0" leaves the leading ghost 8 visible. Do not zero-pad.
+        # Hidden until a rate exists, and while that rate is below
+        # GAS_RATE_STABLE_LIMIT. Otherwise the hours or "--.-" are shown.
+        - label:
+            id: weight_time_background
+            align: TOP_LEFT
+            x: 204
+            y: 144
+            width: 62
+            bg_color: 0x000000
+            bg_opa: COVER
+            pad_all: 0
+            border_width: 0
+            text_font: SEGMENT_FONT_24
+            text_align: RIGHT
+            text_color: !lambda return lv_color_hex(id(color_25));
+            hidden: !lambda |-
+              if (!id(gas_rate_known)) {
+                return true;
+              }
+              return id(gas_rate_g_per_h) < ${GAS_RATE_STABLE_LIMIT};
+            text: "88.8"
+        - label:
+            id: weight_time_value
+            align: TOP_LEFT
+            x: 204
+            y: 144
+            width: 62
+            bg_opa: TRANSP
+            pad_all: 0
+            border_width: 0
+            text_font: SEGMENT_FONT_24
+            text_align: RIGHT
+            text_color: !lambda return lv_color_hex(id(color_100));
+            hidden: !lambda |-
+              if (!id(gas_rate_known)) {
+                return true;
+              }
+              return id(gas_rate_g_per_h) < ${GAS_RATE_STABLE_LIMIT};
+            text: !lambda |-
+              if (!id(gas_time_known)) {
+                return "--.-";
+              }
+              float h = id(gas_time_h);
+              if (!(h >= 0.0f)) {
+                return "--.-";
+              }
+              if (h > 99.9f) {
+                h = 99.9f;
+              }
+              static char buf[8];
+              snprintf(buf, sizeof(buf), "%.1f", (double) h);
+              return buf;
+        - label:
+            id: weight_time_unit
+            align: TOP_LEFT
+            x: 268
+            y: 151
+            width: 16
+            bg_color: 0x000000
+            bg_opa: COVER
+            pad_all: 0
+            border_width: 0
+            text_font: MONTSERRAT_18
+            text_align: LEFT
+            text_color: !lambda return lv_color_hex(id(color_100));
+            hidden: !lambda |-
+              if (!id(gas_rate_known)) {
+                return true;
+              }
+              return id(gas_rate_g_per_h) < ${GAS_RATE_STABLE_LIMIT};
+            text: "h"
+        - label:
+            id: weight_time_icon
+            align: TOP_LEFT
+            x: 286
+            y: 147
+            width: 22
+            bg_color: 0x000000
+            bg_opa: COVER
+            pad_all: 0
+            border_width: 0
+            text_font: ICON_FONT_22
+            text_align: LEFT
+            text_color: !lambda return lv_color_hex(id(color_100));
+            hidden: !lambda |-
+              if (!id(gas_rate_known)) {
+                return true;
+              }
+              return id(gas_rate_g_per_h) < ${GAS_RATE_STABLE_LIMIT};
+            text: "\U000F06AD"
 
   # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
     - id: calibration0_page
@@ -1084,8 +1454,8 @@ lvgl:
                     }
                     return lv_color_hex(id(color_75));
                   text: !lambda |-
-                    static char buf[4];
-                    snprintf(buf, sizeof(buf), "%dkg", id(scale_bottle_kg_options)[0]);
+                    static char buf[16];
+                    snprintf(buf, sizeof(buf), "%d kg", id(scale_bottle_kg_options)[0]);
                     return buf;
             on_click:
               - lambda: id(settings_scale_bottle_kg) = id(scale_bottle_kg_options)[0];
@@ -1122,8 +1492,8 @@ lvgl:
                     }
                     return lv_color_hex(id(color_75));
                   text: !lambda |-
-                    static char buf[4];
-                    snprintf(buf, sizeof(buf), "%dkg", id(scale_bottle_kg_options)[1]);
+                    static char buf[16];
+                    snprintf(buf, sizeof(buf), "%d kg", id(scale_bottle_kg_options)[1]);
                     return buf;
             on_click:
               - lambda: id(settings_scale_bottle_kg) = id(scale_bottle_kg_options)[1];
@@ -1160,8 +1530,8 @@ lvgl:
                     }
                     return lv_color_hex(id(color_75));
                   text: !lambda |-
-                    static char buf[4];
-                    snprintf(buf, sizeof(buf), "%dkg", id(scale_bottle_kg_options)[2]);
+                    static char buf[16];
+                    snprintf(buf, sizeof(buf), "%d kg", id(scale_bottle_kg_options)[2]);
                     return buf;
             on_click:
               - lambda: id(settings_scale_bottle_kg) = id(scale_bottle_kg_options)[2];
@@ -1210,7 +1580,7 @@ lvgl:
               id: calibration2_label
               text: !lambda |-
                 static char buf[12];
-                snprintf(buf, sizeof(buf), "%.2f kg", id(calibration2_hundredths) / 100.0f);
+                snprintf(buf, sizeof(buf), "%d g", id(calibration2_hundredths) * 10);
                 return buf;
       widgets:
         - label:
@@ -1223,7 +1593,7 @@ lvgl:
             text_align: CENTER
             bg_opa: TRANSP
             text_color: !lambda return lv_color_hex(id(color_100));
-            text: "10.00 kg"
+            text: " "
         - button:
             id: calibration2_inc_button
             x: 244
@@ -1243,7 +1613,7 @@ lvgl:
                   text_font: ICON_FONT_30
                   text_color: !lambda return lv_color_hex(id(color_100));
                   bg_color: !lambda return lv_color_hex(id(color_50));
-                  text: "\U000F15CB"
+                  text: "\U000F0415"
             on_click:
               - lambda: |-
                   if (id(calibration2_hundredths) < ${CALIBRATION2_MAX_HUNDREDTHS}) id(calibration2_hundredths)++;
@@ -1254,7 +1624,7 @@ lvgl:
                   id: calibration2_label
                   text: !lambda |-
                     static char buf[12];
-                    snprintf(buf, sizeof(buf), "%.2f kg", id(calibration2_hundredths) / 100.0f);
+                    snprintf(buf, sizeof(buf), "%d g", id(calibration2_hundredths) * 10);
                     return buf;
         - button:
             id: calibration2_dec_button
@@ -1275,7 +1645,7 @@ lvgl:
                   text_font: ICON_FONT_30
                   text_color: !lambda return lv_color_hex(id(color_100));
                   bg_color: !lambda return lv_color_hex(id(color_50));
-                  text: "\U000F1052"
+                  text: "\U000F0374"
             on_click:
               - lambda: |-
                   if (id(calibration2_hundredths) > ${CALIBRATION2_MIN_HUNDREDTHS}) id(calibration2_hundredths)--;
@@ -1286,7 +1656,7 @@ lvgl:
                   id: calibration2_label
                   text: !lambda |-
                     static char buf[12];
-                    snprintf(buf, sizeof(buf), "%.2f kg", id(calibration2_hundredths) / 100.0f);
+                    snprintf(buf, sizeof(buf), "%d g", id(calibration2_hundredths) * 10);
                     return buf;
         - slider:
             id: calibration2_slider
@@ -1308,8 +1678,21 @@ lvgl:
                   id: calibration2_label
                   text: !lambda |-
                     static char buf[12];
-                    snprintf(buf, sizeof(buf), "%.2f kg", id(calibration2_hundredths) / 100.0f);
+                    snprintf(buf, sizeof(buf), "%d g", id(calibration2_hundredths) * 10);
                     return buf;
+        - label:
+            id: calibration2_tare_label
+            x: 14
+            y: 96
+            width: 220
+            height: 28
+            text_font: MONTSERRAT_20
+            text_align: CENTER
+            bg_opa: TRANSP
+            pad_all: 0
+            border_width: 0
+            text_color: !lambda return lv_color_hex(id(color_100));
+            text: "Gas bottle tare"
         - button:
             id: calibration2_ok_button
             x: 14
@@ -1402,6 +1785,7 @@ lvgl:
                   bg_color: !lambda return lv_color_hex(id(color_50));
                   text: "Done"
             on_click:
+              - script.execute: reset_gas_consumption
               - lvgl.page.show: calibration4_page
 
   # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
@@ -1553,7 +1937,7 @@ lvgl:
                   text_font: MONTSERRAT_18
                   text: !lambda |-
                     int v = id(min_soc_value_number).state;
-                    return (to_string(v) + "%").c_str();
+                    return (to_string(v) + " %").c_str();
               - label:
                   id: gas_warning_label1
                   x: 0
@@ -1573,7 +1957,7 @@ lvgl:
                   text_font: MONTSERRAT_18
                   text: !lambda |-
                     int v = id(min_gas_value_number).state;
-                    return (to_string(v) + "%").c_str();
+                    return (to_string(v) + " %").c_str();
               - label:
                   id: color_100_label
                   x: 0
@@ -1650,9 +2034,9 @@ lvgl:
                     - script.execute: toggle_settings_page
               - button:
                   id: calibration_button
-                  x: 258
-                  y: 42
-                  width: 58
+                  x: 253
+                  y: 46
+                  width: 67
                   height: 66
                   pad_all: 0
                   scrollable: false
@@ -1664,10 +2048,24 @@ lvgl:
                     - label:
                         id: calibration_button_label
                         align: CENTER
-                        text_font: ICON_FONT_30
+                        text_font: ICON_FONT_39
                         text_align: CENTER
                         text_color: !lambda return lv_color_hex(id(color_100));
                         bg_color: !lambda return lv_color_hex(id(color_50));
+                        text: "\U000F1358"
+                    - label:
+                        id: calibration_button_cog_label
+                        align: CENTER
+                        x: 17
+                        y: 17
+                        width: 30
+                        height: 30
+                        clickable: false
+                        text_font: ICON_FONT_27
+                        text_align: CENTER
+                        long_mode: CLIP
+                        bg_opa: TRANSP
+                        text_color: !lambda return lv_color_hex(id(color_100));
                         text: "\U000F0493"
                   on_click:
                     - lvgl.page.show: calibration0_page
@@ -1739,7 +2137,7 @@ sensor:
               return 11000;
             }
             return int(x);
-      - lvgl.widget.refresh: uart_raw_value
+      - lvgl.widget.refresh: [uart_raw_value, weight_label]
 
   - platform: template
     name: "Gasbuddy level in %"
@@ -1765,6 +2163,25 @@ sensor:
       - lambda: id(gas_percent_seen) = true;
       - lvgl.widget.refresh: [gas_percent_bar, uart_raw_value, warning_on_label]
 
+  - platform: template
+    name: "Gasbuddy consumption"
+    id: gasbuddy_gas_consumption
+    state_class: measurement
+    unit_of_measurement: "g/h"
+    accuracy_decimals: 1
+    icon: "mdi:fire"
+    update_interval: never
+
+  - platform: template
+    name: "Gasbuddy time left"
+    id: gasbuddy_time_left
+    device_class: duration
+    state_class: measurement
+    unit_of_measurement: h
+    accuracy_decimals: 1
+    icon: "mdi:timer-outline"
+    update_interval: never
+
 binary_sensor:
   - platform: status
     name: "Status ESP"
@@ -1776,24 +2193,100 @@ script:
   - id: update_remaining_gas
     then:
       - lambda: |-
-          if (id(uart_gas_value) < 0) {
+          if (!${DEMO_MODE} && id(uart_gas_value) < 0) {
             return;
           }
-          const int64_t zero = id(settings_scale_raw_zero_persistent);
-          const int64_t brutto = id(settings_scale_brutto_persistent);
-          const int64_t raw = id(uart_gas_value);
+          int64_t zero = id(settings_scale_raw_zero_persistent);
+          int64_t brutto = id(settings_scale_brutto_persistent);
+          int64_t raw = id(uart_gas_value);
+          int64_t empty_h = id(calibration2_hundredths_persisted);
+          int64_t fill_h = (int64_t) id(settings_scale_bottle_kg_persistent) * 100;
+          // Exact remaining grams while DEMO_MODE is on. The usage slope and
+          // the gram readout both follow this. The percent bar still steps
+          // in whole percents.
+          double demo_g = 0;
+          if (${DEMO_MODE}) {
+            // Same formula as below. Only the inputs are synthetic: a saved
+            // calibration is used when it has a span, otherwise a stand-in
+            // span. Remaining gas starts at 90% and only decreases.
+            if (empty_h <= 0) {
+              empty_h = 1000;
+            }
+            if (fill_h <= 0) {
+              fill_h = 1100;
+            }
+            if (brutto <= zero) {
+              zero = 10000;
+              brutto = 30000;
+            }
+            const int64_t full_h_demo = empty_h + fill_h;
+            const int64_t span_demo = brutto - zero;
+            const int64_t empty_count_demo = zero + span_demo * empty_h / full_h_demo;
+            const int64_t gas_span_demo = brutto - empty_count_demo;
+            const double fill_g = (double) fill_h * 10.0;
+            // Piecewise random burn. A new rate is drawn every 30–75 s from
+            // 0 .. 4× DEMO_GRAMS_PER_HOUR, and each poll nudges it. The g/h
+            // estimate is a ~30 s slope, so the hold is long enough for that
+            // label to settle and then move again.
+            static double demo_grams = -1.0;
+            static double demo_rate_g_h = 0.0;
+            static uint32_t demo_last_ms = 0;
+            static uint32_t demo_hold_until = 0;
+            static uint32_t demo_rng = 0;
+            const uint32_t now_ms = millis();
+            const double rate_max = (double) ${DEMO_GRAMS_PER_HOUR} * 4.0;
+            if (demo_grams < 0.0 || demo_rng == 0) {
+              demo_rng = now_ms | 1u;
+              demo_grams = fill_g * 0.90;
+              demo_last_ms = now_ms;
+              demo_hold_until = now_ms;
+            }
+            const uint32_t dt_ms = now_ms - demo_last_ms;
+            demo_last_ms = now_ms;
+            demo_grams -= demo_rate_g_h * ((double) dt_ms / 3600000.0);
+            if ((int32_t) (now_ms - demo_hold_until) >= 0) {
+              demo_rng = demo_rng * 1664525u + 1013904223u;
+              demo_rate_g_h = rate_max * (double) (demo_rng % 1000u) / 999.0;
+              demo_rng = demo_rng * 1664525u + 1013904223u;
+              const uint32_t hold_ms = 30000u + (demo_rng % 45000u);
+              demo_hold_until = now_ms + hold_ms;
+              ESP_LOGI("uart_gasbuddy", "Demo consumption %.0f g/h for %u s", demo_rate_g_h, (unsigned) (hold_ms / 1000u));
+            } else {
+              demo_rng = demo_rng * 1664525u + 1013904223u;
+              demo_rate_g_h += (double) ((int) (demo_rng % 401u) - 200);
+              if (demo_rate_g_h < 0.0) {
+                demo_rate_g_h = 0.0;
+              }
+              if (demo_rate_g_h > rate_max) {
+                demo_rate_g_h = rate_max;
+              }
+            }
+            if (demo_grams < 0.0) {
+              demo_grams = fill_g * 0.90;
+            }
+            if (demo_grams > fill_g) {
+              demo_grams = fill_g;
+            }
+            demo_g = demo_grams;
+            const double demo_percent = (fill_g > 0.0) ? (demo_g * 100.0 / fill_g) : 0.0;
+            if (gas_span_demo > 0) {
+              raw = empty_count_demo + (int64_t) (gas_span_demo * demo_percent / 100.0 + 0.5);
+            }
+          }
           const int64_t span = brutto - zero;
-          const int64_t empty_h = id(calibration2_hundredths_persisted);
-          const int64_t fill_h = (int64_t) id(settings_scale_bottle_kg_persistent) * 100;
           const int64_t full_h = empty_h + fill_h;
           if (span <= 0 || fill_h <= 0 || full_h <= 0) {
             ESP_LOGI("uart_gasbuddy", "Calculated: no span (raw %d zero %d brutto %d)", (int) raw, (int) zero, (int) brutto);
+            id(gas_time_known) = false;
+            id(gasbuddy_time_left).publish_state(NAN);
             return;
           }
           const int64_t empty_count = zero + span * empty_h / full_h;
           const int64_t gas_span = brutto - empty_count;
           if (gas_span <= 0) {
             ESP_LOGI("uart_gasbuddy", "Calculated: no gas span (raw %d zero %d brutto %d)", (int) raw, (int) zero, (int) brutto);
+            id(gas_time_known) = false;
+            id(gasbuddy_time_left).publish_state(NAN);
             return;
           }
           int64_t gas_count = raw - empty_count;
@@ -1810,10 +2303,123 @@ script:
           if (percent > 100) {
             percent = 100;
           }
-          const int gas_g = (int) (fill_h * 10 * percent / 100);
-          ESP_LOGI("uart_gasbuddy", "Calculated: %d%% (%d g) raw %d zero %d brutto %d empty-count %d", percent, gas_g, (int) raw, (int) zero, (int) brutto, (int) empty_count);
+          int gas_g = (int) (fill_h * 10 * percent / 100);
+          if (${DEMO_MODE}) {
+            gas_g = (int) (demo_g + 0.5);
+            if (gas_g < 0) {
+              gas_g = 0;
+            }
+          }
+          ESP_LOGI("uart_gasbuddy", "Calculated: %d %% (%d g) raw %d zero %d brutto %d empty-count %d%s", percent, gas_g, (int) raw, (int) zero, (int) brutto, (int) empty_count, ${DEMO_MODE} ? " demo" : "");
           id(gasbuddy_gas_weight).publish_state(gas_g);
           id(gasbuddy_gas_percent).publish_state(percent);
+
+          // g/h from a least-squares slope over the last GAS_RATE_SAMPLES
+          // remaining-gas readings. Positive means the bottle is getting lighter.
+          constexpr int kRateN = ${GAS_RATE_SAMPLES};
+          static double hist_g[kRateN];
+          static uint32_t hist_ms[kRateN];
+          static int hist_count = 0;
+          static int hist_next = 0;
+          static int hist_epoch = 0;
+          if (id(gas_rate_epoch) != hist_epoch) {
+            hist_count = 0;
+            hist_next = 0;
+            hist_epoch = id(gas_rate_epoch);
+          }
+          if (kRateN >= 2) {
+            const uint32_t now_ms = millis();
+            const double sample_g = ${DEMO_MODE} ? demo_g : (double) gas_g;
+            hist_g[hist_next] = sample_g;
+            hist_ms[hist_next] = now_ms;
+            hist_next = (hist_next + 1) % kRateN;
+            if (hist_count < kRateN) {
+              hist_count++;
+            }
+            if (hist_count < kRateN) {
+              ESP_LOGI("uart_gasbuddy", "Consumption: waiting %d/%d", hist_count, kRateN);
+            } else {
+              const int oldest = hist_next;
+              const uint32_t t0 = hist_ms[oldest];
+              double sum_t = 0;
+              double sum_g = 0;
+              for (int i = 0; i < kRateN; i++) {
+                const int idx = (oldest + i) % kRateN;
+                sum_t += (double) (hist_ms[idx] - t0);
+                sum_g += (double) hist_g[idx];
+              }
+              const double mean_t = sum_t / kRateN;
+              const double mean_g = sum_g / kRateN;
+              double num = 0;
+              double den = 0;
+              for (int i = 0; i < kRateN; i++) {
+                const int idx = (oldest + i) % kRateN;
+                const double dt = (double) (hist_ms[idx] - t0) - mean_t;
+                const double dg = (double) hist_g[idx] - mean_g;
+                num += dt * dg;
+                den += dt * dt;
+              }
+              if (den > 0) {
+                double g_per_h = -(num / den) * 3600000.0;
+                if (g_per_h < 0 || !std::isfinite(g_per_h)) {
+                  g_per_h = 0;
+                }
+                ESP_LOGI("uart_gasbuddy", "Consumption: %.1f g/h over %d readings", g_per_h, kRateN);
+                id(gas_rate_g_per_h) = g_per_h;
+                id(gas_rate_known) = true;
+                id(gasbuddy_gas_consumption).publish_state(g_per_h);
+                const double remain_g = ${DEMO_MODE} ? demo_g : (double) gas_g;
+                if (!(g_per_h >= ${GAS_RATE_STABLE_LIMIT}) || !(remain_g >= 0) || !std::isfinite(remain_g)) {
+                  id(gas_time_known) = false;
+                  id(gasbuddy_time_left).publish_state(NAN);
+                } else {
+                  float hours = (float) (remain_g / g_per_h);
+                  if (!(hours >= 0.0f) || !std::isfinite(hours)) {
+                    id(gas_time_known) = false;
+                    id(gasbuddy_time_left).publish_state(NAN);
+                  } else {
+                    if (hours > 99.9f) {
+                      hours = 99.9f;
+                    }
+                    id(gas_time_h) = hours;
+                    id(gas_time_known) = true;
+                    id(gasbuddy_time_left).publish_state(hours);
+                  }
+                }
+              } else {
+                id(gas_time_known) = false;
+                id(gasbuddy_time_left).publish_state(NAN);
+              }
+            }
+          }
+      - lvgl.widget.refresh:
+          - weight_rate_icon
+          - weight_rate_background
+          - weight_rate_value
+          - weight_rate_unit
+          - weight_time_background
+          - weight_time_value
+          - weight_time_unit
+          - weight_time_icon
+
+  - id: reset_gas_consumption
+    then:
+      - lambda: |-
+          id(gas_rate_epoch)++;
+          id(gas_rate_known) = false;
+          id(gas_time_known) = false;
+          id(gasbuddy_gas_consumption).publish_state(NAN);
+          id(gasbuddy_time_left).publish_state(NAN);
+          ESP_LOGI("uart_gasbuddy", "Consumption: reset");
+      - lvgl.widget.refresh:
+          - weight_rate_icon
+          - weight_rate_background
+          - weight_rate_value
+          - weight_rate_unit
+          - weight_time_background
+          - weight_time_value
+          - weight_time_unit
+          - weight_time_icon
 
   - id: hide_boot_screen
     then:
@@ -1924,8 +2530,21 @@ script:
       - lvgl.widget.refresh:
           - gas_level_obj
           - gas_percent_bar
+          - gas_warning_mark
+          - weight_label_background
+          - weight_label
+          - weight_unit
+          - weight_rate_icon
+          - weight_rate_background
+          - weight_rate_value
+          - weight_rate_unit
+          - weight_time_background
+          - weight_time_value
+          - weight_time_unit
+          - weight_time_icon
           - calibration_button
           - calibration_button_label
+          - calibration_button_cog_label
           - calibration0_label
           - calibration0_next_button
           - calibration0_next_button_label
@@ -1933,6 +2552,7 @@ script:
           - calibration1_next_button
           - calibration1_next_button_label
           - calibration2_label
+          - calibration2_tare_label
           - calibration2_slider
           - calibration2_inc_button
           - calibration2_inc_button_label
@@ -1983,6 +2603,7 @@ script:
           lv_obj_set_style_bg_color(calibration2_slider, lv_color_hex(id(color_50)), LV_PART_INDICATOR);
           lv_obj_set_style_bg_color(calibration2_slider, lv_color_hex(id(color_100)), LV_PART_KNOB);
           lv_obj_set_style_text_color(calibration2_label, lv_color_hex(id(color_100)), LV_PART_MAIN);
+          lv_obj_set_style_text_color(calibration2_tare_label, lv_color_hex(id(color_100)), LV_PART_MAIN);
       - script.execute: style_bottle_kg_buttons
 
   - id: style_bottle_kg_buttons

@@ -13,10 +13,13 @@ This repository is a stripped down version of https://github.com/sagdusmir/G32-G
 
 Focus: **mobile, cloud-independent** GasBuddy display — no cloud login, no Otto Wilde servers. Gas weight is read from the scale over UART.
 
-<img alt="Teaser Gauges" src="https://github.com/user-attachments/assets/7477aff2-aa70-4a29-8a00-d886d874ef73" height="150">
-<img alt="Teaser Temperature Alarm" src="https://github.com/user-attachments/assets/cb68fa71-7baf-4253-ba44-360a564703f2" height="150" />
-<img alt="Teaser Info Page" src="https://github.com/user-attachments/assets/b5609668-ac7d-4246-a799-ebf88fbedc3b" height="150">
-
+<img alt="Teaser Weight (stable)" src="https://github.com/user-attachments/assets/3c9aea37-8a9c-4735-af00-636dbedb936c" height="150">
+<img alt="Teaser Weight (with estimations)" src="https://github.com/user-attachments/assets/fba590d7-4069-487e-86dd-4b6b0c9427ca" height="150">
+<img alt="Teaser Info Screen" src="https://github.com/user-attachments/assets/2e43ae65-6193-4e49-8d6d-b8ed81eb401d" height="150">
+<img alt="Teaser Calibration Wizard 1" src="https://github.com/user-attachments/assets/0c6052d1-c81f-4c70-a572-ac35e10ca549" height="150">
+<img alt="Teaser Calibration Wizard 2" src="https://github.com/user-attachments/assets/8fd18e69-6506-4639-9411-7b2b00718376" height="150">
+<img alt="Teaser Calibration Wizard 3" src="https://github.com/user-attachments/assets/f715eefd-7fc7-4a90-8829-cfd422277bed" height="150">
+<img alt="Teaser Calibration Wizard 4" src="https://github.com/user-attachments/assets/69bfee5c-aaab-481d-b894-ae7fac2a446c" height="150">
 
 Bare device during testing.<br>
 
@@ -41,25 +44,20 @@ Bare device during testing.<br>
 
 ### Implemented functionality
 
-- **Gas level** monitoring (if GasBuddy is installed)
+- **Gas level** monitoring (requires OW GasBuddy)
 - **Alarms** — visual indicator and optional buzzer for gas level and battery SOC. While either value is at or below its limit, the passive buzzer repeats the alert tone every 5 seconds. It stays quiet for the first 15 seconds after boot.
 - Touchscreen configuration
-  - tap the rightmost status bar to see some other details
+  - tap the topmost status bar to get to the details screen
+  - from the details screen you can launch the calibration wizard (which can be aborted in the if you need to)
 - Multiple **color schemes** (predefined + easy to add your own)
-- **Connection & status icons** (WiFi, battery SOC)
+- **Connection & status icons** (WiFi, battery SOC, Warning)
 - **Optional battery monitoring** the state of charge (SOC) of a connected battery can be displayed
-- **Optional Home Assistant** connectivity that exposes most of the measurements and allows confguring some settings of the device that can not be controlled using the UI on the device itself (min SOC level, min gas bottle level, color scheme, hide SOC, hide gas bottle level). At the moment HA will list about 38 entities for this device.
+- **Optional Home Assistant** connectivity that exposes most of the measurements and allows confguring some settings of the device that can not be controlled using the UI on the device itself (min SOC level, min gas bottle level, color scheme, hide SOC, hide gas bottle level, screen powersave).
 
 See [changelog.md](changelog.md).
 
-### What is missing?
-* **Gas Buddy:** calibration of a new gas bottle
-* **G32 light:** setting the brightness level for turning on the light in the lid
-
 ### Limitations
-* Everything that was mentioned above under [What is missing?](#what-is-missing)
 * Volume level of the optional buzzer is a bit low.
-
 
 ## Hardware
 ### BOM
@@ -74,8 +72,8 @@ See [changelog.md](changelog.md).
 | USB-C Connector                              | 1   | Amazon, eBay, AliExpress                 |       ~2€        |
 | 2 pin Wire Connectors                        | n   | Amazon, eBay, AliExpress                 |       ~2€        |
 | Diode                                        | 1   | eBay, somewhere online                   |       ~1€        |
-| Screws	                                     | 4	 | hardware store, eBay, Amazon, AliExpress |       ~1€        |
-| Buzzer	                                     | 1	 | Amazon, eBay, AliExpress                 |       ~1€        |
+| Screws	                                      | 4	 | hardware store, eBay, Amazon, AliExpress  |       ~1€        |
+| Buzzer	                                      | 1	 | Amazon, eBay, AliExpress                  |       ~1€        |
 | some wires (soft silicone wire recommended)  | n   | AliExpress, Amazon, eBay                 |       ~2€        |
 | Kapton tape or electrical tape               | ?   | AliExpress, Amazon, eBay                 |       ~0€        |
 | Case                                         | 1   | a friend with a 3d printer               |    a beer        |
@@ -89,6 +87,7 @@ See [changelog.md](changelog.md).
 
 * __Connector to original OW GasBuddy__<br>
   This is a "__LLT-M12-10004F3054__" (M12-4pin, female, UL2464 cable connector with thread lock) connector from LLT and might be hard to get. I found the manufacturer __Shenzhen Lilutong Electronic Technology Co., Ltd.__ on Alibaba. Contact me in case you need one.
+  <br><img alt="LLT M12 4pin female connector" src="https://github.com/user-attachments/assets/49f237e8-048e-4d0e-814c-4695a358cc5c" width="200">
 
 * __Battery__
   A 3.7V LiPo/Li-Ion Battery (1 cell) will power the ESP32 Dev Board and the GasBuddy. Bigger is better and I went for 30000mAh. The GasBuddy alone consumes 145 mW of power.
