@@ -27,7 +27,6 @@ Bare device during testing.<br>
 
 1. [Features](#features)
    - [Implemented functionality](#implemented-functionality)  
-   - [What is missing?](#what-is-missing)
    - [Limitations](#limitations)
 3. [Hardware](#hardware)
    - [BOM](#bom)
