@@ -195,7 +195,6 @@ Each [GitHub Release](https://github.com/sagdusmir/GasBuddy-Display-320x172/rele
    esphome run gasbuddy-display.yaml
    ```
    You may be asked how the connection should be established.
-5. You might need to power-cycle the device after flashing if the screen shows some artefacts.
 
 ## Troubleshooting
 
