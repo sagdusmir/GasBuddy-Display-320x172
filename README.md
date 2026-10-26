@@ -1,4 +1,4 @@
-# G32 Connected Grill Monitor and Display MINI
+# OW GasBuddy Display and Home Assistant integration
 
 
 [![GitHub release](https://img.shields.io/github/v/release/sagdusmir/GasBuddy-Display-320x172?style=flat-square&logo=github&color=blue)](https://github.com/sagdusmir/GasBuddy-Display-320x172/releases/latest)
