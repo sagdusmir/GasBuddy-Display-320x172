@@ -11,7 +11,7 @@
 This repository is a variation of https://github.com/sagdusmir/G32-Grill-Display-320x172-BT, and allows to use a OW GasBuddy without connecting it to a G32 gas grill. In case you own a 2nd or 3rd GasBuddy or your G32 broke down on you, this is for you.
 
 
-Focus: **mobile, cloud-independent** GasBuddy display — no cloud login, no Otto Wilde servers. Gas weight is read from the scale over UART.
+Focus: **mobile, cloud-independent, G32-independent** GasBuddy display — no cloud login, no Otto Wilde servers, no G32. Gas weight is read from the scale over UART. Direct connection between GasBuddy and this device is required.
 
 <img alt="Teaser Weight (stable)" src="https://github.com/user-attachments/assets/3c9aea37-8a9c-4735-af00-636dbedb936c" height="150">
 <img alt="Teaser Weight (with estimations)" src="https://github.com/user-attachments/assets/fba590d7-4069-487e-86dd-4b6b0c9427ca" height="150">
