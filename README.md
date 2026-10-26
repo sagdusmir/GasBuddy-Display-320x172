@@ -82,7 +82,7 @@ See [changelog.md](changelog.md).
 ### Component Details
 
 * __ESP32 Dev Board__<br>
-  You need a "__Waveshare ESP32-C6-Touch-LCD-1.47__". It is equipped with an ESP32-C6, WiFi, Bluetooth, a 320x172 Pixel 1.47" touchscreen, and everything you need. No additional memory card required.
+  You need a "__Waveshare ESP32-C6-Touch-LCD-1.47__". It is equipped with an ESP32-C6, WiFi, Bluetooth, a 320x172 Pixel 1.47" touchscreen, and everything you need. No additional memory card required. Attention: The non-touch version is a very different hardware.
 
 * __Connector to original OW GasBuddy__<br>
   This is a "__LLT-M12-10004F3054__" (M12-4pin, female, UL2464 cable connector with thread lock) connector from LLT and might be hard to get. I found the manufacturer __Shenzhen Lilutong Electronic Technology Co., Ltd.__ on Alibaba. Contact me in case you need one.
