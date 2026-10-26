@@ -8,7 +8,7 @@
 [![Grill make](https://img.shields.io/badge/grill-OW_G32_Connected-critical)](https://www.grillsportverein.de/forum/threads/otto-wilde-g32-smarthome.369079/page-999)
 [![HA support](https://img.shields.io/badge/Home_Assistant-recommended-informational?style=flat-square&logo=home-assistant&logoColor=white&color=orange)](https://home-assistant.io)
 
-This repository is a variation of https://github.com/sagdusmir/G32-Grill-Display-320x172-BT , and allows to use a OW GasBuddy without connecting it to a G32 gas grill.
+This repository is a variation of https://github.com/sagdusmir/G32-Grill-Display-320x172-BT, and allows to use a OW GasBuddy without connecting it to a G32 gas grill. In case you own a 2nd or 3rd GasBuddy or your G32 broke down on you, this is for you.
 
 
 Focus: **mobile, cloud-independent** GasBuddy display — no cloud login, no Otto Wilde servers. Gas weight is read from the scale over UART.
