@@ -48,6 +48,7 @@ Bare device during testing.<br>
 - Touchscreen configuration
   - tap the topmost status bar to get to the details screen
   - from the details screen you can launch the calibration wizard (which can be aborted in the if you need to)
+  - the configuration wizard if fully contional using the device stand alone (no Home Assistant required)
 - Multiple **color schemes** (predefined + easy to add your own)
 - **Connection & status icons** (WiFi, battery SOC, Warning)
 - **Optional battery monitoring** the state of charge (SOC) of a connected battery can be displayed
