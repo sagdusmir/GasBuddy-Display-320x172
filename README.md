@@ -134,7 +134,7 @@ top of the pcb horizontally to the right (for both: charger module and USB-C bre
 
 The Pololu can be *carefully* slot into place (tight fit) with the wires pointing to the inside. The charger module with the installed USB plug should fit right inside the case (same orientation as in the wiring sketch). Place the piezo buzzer
 on top and install the ESP32 Dev Board to close everything up. Use a bit of Kapton tape if exposed contacts might touch each other.
-<br><img alt="wiring draft" src="https://github.com/user-attachments/assets/c269ee88-f03d-49cb-88c6-762994f9323e" width="200">
+<br><img alt="wiring sketch" src="https://github.com/user-attachments/assets/fe015b04-6668-4cca-90df-eae03c802704" width="200">
 
 #### Assembly
 - drop the battery into place so the connector sticks out the display casing<br>
