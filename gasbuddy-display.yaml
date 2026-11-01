@@ -6,7 +6,7 @@ substitutions:
   # Name of the ESPHome device (modify if you like, avoid special characters)
   name: gasbuddy-display
   device_description: "Monitor an OW GasBuddy Scale"
-  version: "GBuddy 0.9.0"
+  version: "GBuddy 1.0.0"
 
   # either pull values from secrets.yaml
   # or have it directly in this file
@@ -16,7 +16,7 @@ substitutions:
   # wifi_password: "INSERT_YOUR_WIFI_PASSWORD"
 
   # Enter data of the newly created Home Assistant ESPHome device. Example:
-  api_encryption_key: "YcM9Kcc+DRDHfISFcF8FlDN0WuanM1LJV3duK/PugZA="
+  api_encryption_key: "BzRHwJOBQ7yfGTsoQ7Ofacsyblo9RE5gvwnRnQR1G8I="
 
   # over-the-air updates (ESPHome CLI or Home Assistant add-On)
   # Hint: if you changed this value on the device, you might have to alter
