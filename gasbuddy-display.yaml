@@ -6,7 +6,7 @@ substitutions:
   # Name of the ESPHome device (modify if you like, avoid special characters)
   name: gasbuddy-display
   device_description: "Monitor an OW GasBuddy Scale"
-  version: "GBuddy 0.0.1"
+  version: "GBuddy 0.9.0"
 
   # either pull values from secrets.yaml
   # or have it directly in this file
@@ -118,6 +118,7 @@ esphome:
   on_boot:
     # priority: 1100 # stay above 1000 and below 1500!  # CHANGE FOR MINI
     then:
+      - output.turn_on: scale_power  # keep scale powered (testing)
       - lambda: id(boot_start_time) = millis();
       - light.turn_on: backlight
 
@@ -306,6 +307,11 @@ output:
   - platform: ledc
     id: rtttl_out
     pin: GPIO5
+
+  # Scale power enable (S7V8F5 SHDN). Held high = scale always on during testing.
+  - platform: gpio
+    id: scale_power
+    pin: GPIO4
 
 light:
   - id: backlight
