@@ -115,7 +115,7 @@ See [changelog.md](changelog.md).
   I used a few micro JST1.25 2pin connectors (male + female) to keep things modular. At least the battery should be easy do disconnect so you do not have to solder the wires while it is connected.
 
 * __Diode__<br>
-  A Schottky Diode with a low voltage drop of 0.3-0.4V (e.g. 1N5819) to separate the charging power path a bit from the rest because the documentation of most charge controllers will not be that detailed.
+  Schottky Diodes with a low voltage drop of 0.3-0.4V (e.g. 1N5819) to direct power flow.
 
 * __Buzzer__<br>
   A __passive__ piezo buzzer.<br>Configured pins are GPIO5 amd GPIO6. The buzzer should be rather small to fit inside tha case (e.g. ⌀13mm x 2.5mm or similar). The smaller the buzzer, the easier it is to mount the ESP32 Dev-Board in the enclosure. Even a "Universal Passive Buzzer 12085" (12mm x 8.5mm) will fit if you keep wires short.
