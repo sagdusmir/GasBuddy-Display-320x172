@@ -20,8 +20,9 @@ Focus: **mobile, cloud-independent, G32-independent** GasBuddy display — no cl
 <img alt="Teaser Calibration Wizard 2" src="https://github.com/user-attachments/assets/8fd18e69-6506-4639-9411-7b2b00718376" height="150">
 <img alt="Teaser Calibration Wizard 3" src="https://github.com/user-attachments/assets/f715eefd-7fc7-4a90-8829-cfd422277bed" height="150">
 <img alt="Teaser Calibration Wizard 4" src="https://github.com/user-attachments/assets/69bfee5c-aaab-481d-b894-ae7fac2a446c" height="150">
+<img alt="Home Assistant device page: Controls, Sensors and Diagnostic" src="https://github.com/user-attachments/assets/c1edc575-086f-45c1-95d1-62cefc462ac5" height="150">
 
-Bare device during testing.<br>
+<br>Bare device during testing.<br>
 
 # Table of Contents
 
