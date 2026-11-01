@@ -69,15 +69,16 @@ See [changelog.md](changelog.md).
 | Connector to original GasBuddy               | 1   | Alibaba                                  |    ~2€ - arm+leg |
 | Battery                                      | 1   | AliExpress                               |    ~8€ - 12€     |
 | Power Switch with Reverse Voltage Protection | 1   | somewhere online                         |    ~5€ - 10€     |
+| Step-Up/Step-Down Voltage Regulator          | 1   | somewhere online                         |    ~8€ - 10€     |
 | USB 5V 2A Boost Converter + Charger circuit  | 1   | AliExpress                               |     ~2€ - 5€     |
 | USB-C Connector                              | 1   | Amazon, eBay, AliExpress                 |       ~2€        |
 | 2 pin Wire Connectors                        | n   | Amazon, eBay, AliExpress                 |       ~2€        |
-| Diode                                        | 1   | eBay, somewhere online                   |       ~1€        |
-| Screws	                                      | 4	 | hardware store, eBay, Amazon, AliExpress  |       ~1€        |
-| Buzzer	                                      | 1	 | Amazon, eBay, AliExpress                  |       ~1€        |
+| Diode                                        | 3   | eBay, somewhere online                   |       ~1€        |
+| Screws	                                      | 4   | hardware store, eBay, Amazon, AliExpress |       ~1€        |
+| Buzzer	                                      | 1	  | Amazon, eBay, AliExpress                 |       ~1€        |
 | some wires (soft silicone wire recommended)  | n   | AliExpress, Amazon, eBay                 |       ~2€        |
 | Kapton tape or electrical tape               | ?   | AliExpress, Amazon, eBay                 |       ~0€        |
-| Case                                         | 1   | a friend with a 3d printer               |    a beer        |
+| Case (WORK IN PROGRESS)                      | 1   | a friend with a 3d printer               |    a beer        |
 | USB-C Connection Cable                       | 1   | your existing collection of cables       |       ~0€        |
 
 
@@ -96,6 +97,9 @@ See [changelog.md](changelog.md).
 
 * __Power Switch with Reverse Voltage Protection__<br>
   To minimize power draw, I am using a Pololu Mini Pushbutton Power Switch,Reverse Voltage Protection,LV (Pololu 2808) which should reduce power draw as much as possible. Unfortunately the module is a bit pricey.
+
+* __Step-Up/Step-Down Voltage Regulator__<br>
+  To provide power to the GasBuddy scale, I use a Pololu 5V Step-Up/Step-Down Voltage Regulator S7V8F5. This also has a shutdown input to turn power off.
 
 * __5V 2A Boost Converter + Charger circuit__<br>
   I recommend using a cheap board that has an auto power-save feature. The one that I ultimately decided on goes under the name "Type-C USB 5V 2A Boost Converter Step-Up Power Module Lithium Battery Charging Protection Board LED Display USB Charger". The boost portion is actually not used because I wanted to keep it simple and have the SOC measurement working without adding another voltage divider for the voltage at the battery.
@@ -116,10 +120,8 @@ See [changelog.md](changelog.md).
 * __Buzzer__<br>
   A __passive__ piezo buzzer.<br>Configured pins are GPIO5 amd GPIO6. The buzzer should be rather small to fit inside tha case (e.g. ⌀13mm x 2.5mm or similar). The smaller the buzzer, the easier it is to mount the ESP32 Dev-Board in the enclosure. Even a "Universal Passive Buzzer 12085" (12mm x 8.5mm) will fit if you keep wires short.
 
-* __Case__<br>
-  There is a 3D model of a case in the `misc` folder. Using the case.m3f file is the easiest. If that does not work for you, you can give the two .stl files a try. I placed the main case with the bottom flat on the print bed. Enabled raft and manually added tree support from the bed to the underside of the power button, to the top of the usb-port cutout and in a straight vertical line in the middle of the back of the case so it does not tip over while printing. For the battery cover I placed the short straight edge on the build plate and manually added tree support to each untgerside of the clips and in a straight vertical line in the middle of the back to add some stability. I included some images in the repository that show where I painted support structures. __NOTE__: Do not try to operate the button before installing the Pololu. You will probably snap it if there is nothing to limit its way of travel.
-  <br><img alt="Teaser Testing Case Design Render" src="https://github.com/user-attachments/assets/e653098a-848d-4d84-96ad-7d0f5163ddc0" height="175">
-
+* __Case__<br>This is still a WORK IN PROGRESS
+  
 ### Wiring and Assembly
 
 #### Wiring
@@ -138,28 +140,8 @@ on top and install the ESP32 Dev Board to close everything up. Use a bit of Kapt
 <br><img alt="wiring sketch" src="https://github.com/user-attachments/assets/9b5fe184-5fa5-4b5a-826b-5293ba4cf9bd" width="200">
 
 #### Assembly
-- drop the battery into place so the connector sticks out the display casing<br>
-  <img alt="assembly_1_install_the_battery" src="https://github.com/user-attachments/assets/f43e1ec5-d3b2-4285-81db-02590712703c" height="175">
 
-- component wiring overview for orientation<br>
-  <img alt="assembly_2_wiring_overview" src="https://github.com/user-attachments/assets/f0d8183d-8fa4-4e52-bfec-3b7fd0f4cf96" height="175">
-
-- install the power switch by sliding it all the way down between the mounting posts (tight fit, and the top is intended to stick out a bit)<br>
-  <img alt="assembly_3_slide_pololu_down_the_case" src="https://github.com/user-attachments/assets/b486c4b0-cdd1-49fb-b5d4-5a63f61441a7" height="175">
-
-- install the charger board with the USB-C breakout borad plugged in and push it down to make room for the buzzer and the wiring<br>
-  <img alt="assembly_4_orientation_of_the_charger_board" src="https://github.com/user-attachments/assets/841de468-23a7-4f09-b329-ced60c68de37" height="175">
-  <img alt="assembly_5_push_charger_board_down_so_there_is_place_for_the_buzzer_on_top" src="https://github.com/user-attachments/assets/5a39e3c0-c1a1-4d8f-835f-80496ff6fb09" height="175">
-
-- put the buzzer on top of the charger board and install the display (do not pinch the wires or trap any of them between the display and the mounting posts)<br>
-  <img alt="assembly_6_install_display_without_trapping_wires_below_the_mounting_posts" src="https://github.com/user-attachments/assets/3c0600a7-1d33-40e4-8706-9ef785acba9a" height="175">
-  <img alt="Teaser Testing Case Design" src="https://github.com/user-attachments/assets/7748155b-8b2b-4c14-a970-0c6f3c926dd1" height="175">
-  <img alt="impression" src="https://github.com/user-attachments/assets/a1ae70d3-7fb6-4171-a393-d219c019fa72" height="175">
-  <img alt="impression" src="https://github.com/user-attachments/assets/66e71921-71ec-4c2d-8378-c14c80f37fdd" height="175">
-  <img alt="impression" src="https://github.com/user-attachments/assets/fc15aabd-d76b-46d3-9666-4b7a5720aba8" height="175">
-  <img alt="comparison" src="https://github.com/user-attachments/assets/809fd282-7746-416c-8c64-a635fd3c5cf7" height="175">
-  <img alt="alternative case design idea" src="https://github.com/user-attachments/assets/e1d44edf-de7c-4f18-817d-e06a43dc1bf2" height="175">
-
+Upcoming, once the 3D model of the case is done.
 
 ## Uploading the software to the ESP
 
