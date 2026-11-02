@@ -1,4 +1,4 @@
-# OW GasBuddy Display and Home Assistant integration
+# OW GasBuddy Display and Home Assistant integration (WORK IN PROGRESS!!)
 
 
 [![GitHub release](https://img.shields.io/github/v/release/sagdusmir/GasBuddy-Display-320x172?style=flat-square&logo=github&color=blue)](https://github.com/sagdusmir/GasBuddy-Display-320x172/releases/latest)
@@ -59,6 +59,10 @@ See [changelog.md](changelog.md).
 
 ### Limitations
 * Volume level of the optional buzzer is a bit low.
+
+### Missing
+* 3d model for case / mount
+* validation of fully assembled hardware
 
 ## Hardware
 ### BOM
