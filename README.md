@@ -143,7 +143,7 @@ The Pololu can be *carefully* slot into place (tight fit) with the wires pointin
 on top and install the ESP32 Dev Board to close everything up. Use a bit of Kapton tape if exposed contacts might touch each other.
 <br><img alt="wiring sketch" src="https://github.com/user-attachments/assets/9b5fe184-5fa5-4b5a-826b-5293ba4cf9bd" width="200">
 <br>Wiring when using the optional custom pcb:
-<br><img alt="wiring sketch with optional custom shield pcb" src=""https://github.com/user-attachments/assets/4eff5927-946b-48e5-986c-c065a20f8c01" width="200">
+<br><img alt="wiring sketch with optional custom shield pcb" src="https://github.com/user-attachments/assets/4eff5927-946b-48e5-986c-c065a20f8c01" width="200">
 
 #### Assembly
 
