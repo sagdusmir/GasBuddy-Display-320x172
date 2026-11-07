@@ -129,18 +129,9 @@ See [changelog.md](changelog.md).
 ### Wiring and Assembly
 
 #### Wiring
-Important:<br>
-the Pololu push button will point to the outside of the case, so make sure to have the wires on the opposite side pointing
-towards the other comonents.
-Space is limited, so connect the USB-C breakout board to the charger as shown in the wiring draft and solder wires from the
-top of the pcb horizontally to the right (for both: charger module and USB-C breakout board). If they point in any other direction, you will struggle to stuff everything into the case. 
 
-- connect Pololu VOUT and GND to ESP32 BAT and GND
-- connect Pololu VIN and GND in parallel with the battery to the battery pads of the charger module
-- connect ESP32 VBUS and GND to the power input of the charger module with the Schottky diode as shown
+This is still a WORK IN PROGRESS
 
-The Pololu can be *carefully* slot into place (tight fit) with the wires pointing to the inside. The charger module with the installed USB plug should fit right inside the case (same orientation as in the wiring sketch). Place the piezo buzzer
-on top and install the ESP32 Dev Board to close everything up. Use a bit of Kapton tape if exposed contacts might touch each other.
 <br>
 <br>Wiring when using the usb-c port for delivering power (the most basic option):
 <br><img alt="wiring sketch with powering via usb-c" src="https://github.com/user-attachments/assets/e901f5aa-db8a-45a5-ae19-a759f69266a6" width="200">
