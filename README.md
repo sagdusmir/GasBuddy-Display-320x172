@@ -13,6 +13,7 @@ This repository is a variation of the hardware used for https://github.com/sagdu
 
 Focus: **mobile, cloud-independent, G32-independent** GasBuddy display — no cloud login, no Otto Wilde servers, no G32. Gas weight is read from the scale over UART. Direct connection between GasBuddy and this device is required.
 
+<br>Bare device during testing:<br>
 <img alt="Teaser Weight (stable)" src="https://github.com/user-attachments/assets/3c9aea37-8a9c-4735-af00-636dbedb936c" height="150">
 <img alt="Teaser Weight (with estimations)" src="https://github.com/user-attachments/assets/fba590d7-4069-487e-86dd-4b6b0c9427ca" height="150">
 <img alt="Teaser Info Screen" src="https://github.com/user-attachments/assets/2e43ae65-6193-4e49-8d6d-b8ed81eb401d" height="150">
@@ -21,8 +22,10 @@ Focus: **mobile, cloud-independent, G32-independent** GasBuddy display — no cl
 <img alt="Teaser Calibration Wizard 3" src="https://github.com/user-attachments/assets/f715eefd-7fc7-4a90-8829-cfd422277bed" height="150">
 <img alt="Teaser Calibration Wizard 4" src="https://github.com/user-attachments/assets/69bfee5c-aaab-481d-b894-ae7fac2a446c" height="150">
 <img alt="Home Assistant device page: Controls, Sensors and Diagnostic" src="https://github.com/user-attachments/assets/c1edc575-086f-45c1-95d1-62cefc462ac5" height="150">
-
-<br>Bare device during testing.<br>
+<br>
+<br>
+3D models:<br>
+<img alt="strain relief for the scale pcb" src="https://github.com/user-attachments/assets/78315862-9e91-4e0d-8273-cdfe8ef62b35" height="150">
 
 # Table of Contents
 
