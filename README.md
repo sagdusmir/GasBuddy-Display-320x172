@@ -82,7 +82,9 @@ See [changelog.md](changelog.md).
 | Buzzer	                                      | 1	  | Amazon, eBay, AliExpress                 |       ~1€        |
 | some wires (soft silicone wire recommended)  | n   | AliExpress, Amazon, eBay                 |       ~2€        |
 | Kapton tape or electrical tape               | ?   | AliExpress, Amazon, eBay                 |       ~0€        |
+| strain relief (optional)                     | 1   | a friend with a 3d printer               |    a beer        |
 | Case (WORK IN PROGRESS)                      | 1   | a friend with a 3d printer               |    a beer        |
+| zip ties (optional)                          | n   | your existing collection of zip ties     |       ~0€        |
 | USB-C Connection Cable                       | 1   | your existing collection of cables       |       ~0€        |
 
 
@@ -123,6 +125,9 @@ See [changelog.md](changelog.md).
 
 * __Buzzer__<br>
   A __passive__ piezo buzzer.<br>Configured pins are GPIO5 amd GPIO6. The buzzer should be rather small (e.g. ⌀13mm x 2.5mm or similar). 
+
+* __strain relief__<br>
+  An easy to print 3d model (fdm) that is fixed into place by two zip ties after pressing the GasBuddy cable into the channel on the backside. This is fully optional bt should protect the cable connection to the pcb od the digital scale.
 
 * __Case__<br>This is still a WORK IN PROGRESS
   
