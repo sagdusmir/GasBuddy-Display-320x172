@@ -125,7 +125,7 @@ See [changelog.md](changelog.md).
   Schottky Diodes with a low voltage drop of 0.3-0.4V (e.g. 1N5819) to direct power flow.
 
 * __Buzzer__<br>
-  A __passive__ piezo buzzer.<br>Configured pins are GPIO5 amd GPIO6. The buzzer should be rather small (e.g. ⌀13mm x 2.5mm or similar). 
+  A __passive__ piezo buzzer.<br>Configured pins are GPIO5 amd GPIO6. The buzzer should be rather small (e.g. 12085 with ⌀12mm x 8.5mm or similar). 
 
 * __strain relief__<br>
   An easy to print 3d model (fdm) that is fixed into place by two zip ties after pressing the GasBuddy cable into the channel on the backside. This is fully optional but should protect the cable connection to the pcb of the digital scale. (ugly color for demonstration purposes only)
