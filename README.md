@@ -24,9 +24,6 @@ Focus: **mobile, cloud-independent, G32-independent** GasBuddy display — no cl
 <img alt="Home Assistant device page: Controls, Sensors and Diagnostic" src="https://github.com/user-attachments/assets/c1edc575-086f-45c1-95d1-62cefc462ac5" height="150">
 <br>
 <br>
-3D models:<br>
-- strain relief for GasBuddy scale pcb (ugly color for demonstration purposes only)
-  <br><img alt="strain relief for the scale pcb" src="https://github.com/user-attachments/assets/78315862-9e91-4e0d-8273-cdfe8ef62b35" height="150"><img alt="strain relief printed part" src="https://github.com/user-attachments/assets/b5890f83-9582-43c6-afe7-d5bcc3c34970" height="150"><img alt="strain relief mounted part" src="https://github.com/user-attachments/assets/45a32c2b-312b-459a-b7a1-faeead4ab57b" height="150"><br>
 
 # Table of Contents
 
@@ -131,7 +128,8 @@ See [changelog.md](changelog.md).
   A __passive__ piezo buzzer.<br>Configured pins are GPIO5 amd GPIO6. The buzzer should be rather small (e.g. ⌀13mm x 2.5mm or similar). 
 
 * __strain relief__<br>
-  An easy to print 3d model (fdm) that is fixed into place by two zip ties after pressing the GasBuddy cable into the channel on the backside. This is fully optional bt should protect the cable connection to the pcb od the digital scale.
+  An easy to print 3d model (fdm) that is fixed into place by two zip ties after pressing the GasBuddy cable into the channel on the backside. This is fully optional but should protect the cable connection to the pcb of the digital scale. (ugly color for demonstration purposes only)
+  <br><img alt="strain relief for the scale pcb" src="https://github.com/user-attachments/assets/78315862-9e91-4e0d-8273-cdfe8ef62b35" height="150"><img alt="strain relief printed part" src="https://github.com/user-attachments/assets/b5890f83-9582-43c6-afe7-d5bcc3c34970" height="150"><img alt="strain relief mounted part" src="https://github.com/user-attachments/assets/45a32c2b-312b-459a-b7a1-faeead4ab57b" height="150"><br>
 
 * __Case__<br>This is still a WORK IN PROGRESS
   
