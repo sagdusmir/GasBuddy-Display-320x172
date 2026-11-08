@@ -25,7 +25,8 @@ Focus: **mobile, cloud-independent, G32-independent** GasBuddy display — no cl
 <br>
 <br>
 3D models:<br>
-<img alt="strain relief for the scale pcb" src="https://github.com/user-attachments/assets/78315862-9e91-4e0d-8273-cdfe8ef62b35" height="150">
+- strain relief for GasBuddy scale pcb (ugly color for demonstration purposes only)
+  <br><img alt="strain relief for the scale pcb" src="https://github.com/user-attachments/assets/78315862-9e91-4e0d-8273-cdfe8ef62b35" height="150"><img alt="strain relief printed part" src="https://github.com/user-attachments/assets/b5890f83-9582-43c6-afe7-d5bcc3c34970" height="150"><img alt="strain relief mounted part" src="https://github.com/user-attachments/assets/45a32c2b-312b-459a-b7a1-faeead4ab57b" height="150"><br>
 
 # Table of Contents
 
