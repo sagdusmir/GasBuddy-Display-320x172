@@ -142,10 +142,15 @@ This is still a WORK IN PROGRESS
 <br>
 <br>Wiring when using the usb-c port for delivering power (the most basic option):
 <br><img alt="wiring sketch with powering via usb-c" src="https://github.com/user-attachments/assets/e901f5aa-db8a-45a5-ae19-a759f69266a6" width="200">
+<br>Just connect the GasBuddy to the ESP32 Dev-Board. As always: the buzzer is optional.
+<br>
 <br>Wiring when using a rechargable battery:
 <br><img alt="wiring sketch" src="https://github.com/user-attachments/assets/ecc2deb0-5185-4ecb-a9db-9589be89d1c9" width="200">
+<br>This is as complex as it gets but gives you the most freedom in arranging the components to your liking.
+<br>
 <br>Wiring when using a rechargable battery with the optional custom pcb:
 <br><img alt="wiring sketch with optional custom shield pcb" src="https://github.com/user-attachments/assets/6bf8a9df-1d9a-4cea-9d7a-1408c1f8dcba" width="200">
+<br>This is essentially the same as without the pcb - but reduces the wiring by a lot.
 
 
 #### Assembly
