@@ -63,7 +63,7 @@ See [changelog.md](changelog.md).
 
 ### Missing
 * 3d model for case / mount
-* validation of fully assembled hardware
+* good weather for identifying any bugs that might arise during use
 
 ## Hardware
 ### BOM
