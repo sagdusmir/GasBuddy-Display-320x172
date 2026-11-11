@@ -60,9 +60,11 @@ substitutions:
   SETTINGS_HIDE_SOC: "false"
   SETTINGS_MIN_SOC_VALUE: "25"
 
-  # empty bottle weight slider, in hundredths of a kilogram (300 = 3.00 kg, 2000 = 20.00 kg)
+  # Empty bottle weight, in hundredths of a kilogram (350 = 3.50 kg).
+  # One hundredth is 10 g. The slider and buttons move 5 hundredths (50 g).
   CALIBRATION2_MIN_HUNDREDTHS: "350"
   CALIBRATION2_MAX_HUNDREDTHS: "1500"
+  CALIBRATION2_STEP_HUNDREDTHS: "5"
 
   # 0: remaining gas comes from the scale. 1: the calculation uses a raw
   # count that falls over time, so the display shows a bottle losing gas.
@@ -1655,9 +1657,14 @@ lvgl:
           - lambda: |-
               const int lo = ${CALIBRATION2_MIN_HUNDREDTHS};
               const int hi = ${CALIBRATION2_MAX_HUNDREDTHS};
-              if (id(calibration2_hundredths) < lo) id(calibration2_hundredths) = lo;
-              if (id(calibration2_hundredths) > hi) id(calibration2_hundredths) = hi;
-              lv_slider_set_value(calibration2_slider, id(calibration2_hundredths), LV_ANIM_OFF);
+              const int step = ${CALIBRATION2_STEP_HUNDREDTHS};
+              int v = id(calibration2_hundredths);
+              if (v < lo) v = lo;
+              if (v > hi) v = hi;
+              v = ((v - lo + step / 2) / step) * step + lo;
+              if (v > hi) v = hi;
+              id(calibration2_hundredths) = v;
+              lv_slider_set_value(calibration2_slider, v, LV_ANIM_OFF);
           - lvgl.label.update:
               id: calibration2_label
               text: !lambda |-
@@ -1698,7 +1705,11 @@ lvgl:
                   text: "\U000F0415"
             on_click:
               - lambda: |-
-                  if (id(calibration2_hundredths) < ${CALIBRATION2_MAX_HUNDREDTHS}) id(calibration2_hundredths)++;
+                  const int step = ${CALIBRATION2_STEP_HUNDREDTHS};
+                  const int hi = ${CALIBRATION2_MAX_HUNDREDTHS};
+                  int next = id(calibration2_hundredths) + step;
+                  if (next > hi) next = hi;
+                  id(calibration2_hundredths) = next;
               - lvgl.slider.update:
                   id: calibration2_slider
                   value: !lambda return id(calibration2_hundredths);
@@ -1730,7 +1741,11 @@ lvgl:
                   text: "\U000F0374"
             on_click:
               - lambda: |-
-                  if (id(calibration2_hundredths) > ${CALIBRATION2_MIN_HUNDREDTHS}) id(calibration2_hundredths)--;
+                  const int step = ${CALIBRATION2_STEP_HUNDREDTHS};
+                  const int lo = ${CALIBRATION2_MIN_HUNDREDTHS};
+                  int next = id(calibration2_hundredths) - step;
+                  if (next < lo) next = lo;
+                  id(calibration2_hundredths) = next;
               - lvgl.slider.update:
                   id: calibration2_slider
                   value: !lambda return id(calibration2_hundredths);
@@ -1755,7 +1770,17 @@ lvgl:
             knob:
               bg_color: !lambda return lv_color_hex(id(color_100));
             on_value:
-              - lambda: id(calibration2_hundredths) = x;
+              - lambda: |-
+                  const int lo = ${CALIBRATION2_MIN_HUNDREDTHS};
+                  const int hi = ${CALIBRATION2_MAX_HUNDREDTHS};
+                  const int step = ${CALIBRATION2_STEP_HUNDREDTHS};
+                  int snapped = ((x - lo + step / 2) / step) * step + lo;
+                  if (snapped < lo) snapped = lo;
+                  if (snapped > hi) snapped = hi;
+                  id(calibration2_hundredths) = snapped;
+                  if (snapped != x) {
+                    lv_slider_set_value(calibration2_slider, snapped, LV_ANIM_OFF);
+                  }
               - lvgl.label.update:
                   id: calibration2_label
                   text: !lambda |-
