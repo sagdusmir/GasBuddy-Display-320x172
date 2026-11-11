@@ -1,4 +1,4 @@
-# OW GasBuddy Display and Home Assistant integration (WORK IN PROGRESS!!)
+# OW GasBuddy Display and Home Assistant integration
 
 
 [![GitHub release](https://img.shields.io/github/v/release/sagdusmir/GasBuddy-Display-320x172?style=flat-square&logo=github&color=blue)](https://github.com/sagdusmir/GasBuddy-Display-320x172/releases/latest)
@@ -82,8 +82,9 @@ See [changelog.md](changelog.md).
 | Screws	                                      | 4   | hardware store, eBay, Amazon, AliExpress |       ~1€        |
 | Buzzer	                                      | 1	  | Amazon, eBay, AliExpress                 |       ~1€        |
 | some wires (soft silicone wire recommended)  | n   | AliExpress, Amazon, eBay                 |       ~2€        |
-| Kapton tape or electrical tape               | ?   | AliExpress, Amazon, eBay                 |       ~0€        |
+| Kapton tape or electrical tape (optional)    | ?   | AliExpress, Amazon, eBay                 |       ~0€        |
 | strain relief (optional)                     | 1   | a friend with a 3d printer               |    a beer        |
+| custom shield PCB (optional)                 | 1   | somewhere online                         |      ~10€        |
 | Case (WORK IN PROGRESS)                      | 1   | a friend with a 3d printer               |    a beer        |
 | zip ties (optional)                          | n   | your existing collection of zip ties     |       ~0€        |
 | USB-C Connection Cable                       | 1   | your existing collection of cables       |       ~0€        |
@@ -131,15 +132,15 @@ See [changelog.md](changelog.md).
   An easy to print 3d model (fdm) that is fixed into place by two zip ties after pressing the GasBuddy cable into the channel on the backside. This is fully optional but should protect the cable connection to the pcb of the digital scale. (ugly color for demonstration purposes only)
   <br><img alt="strain relief for the scale pcb" src="https://github.com/user-attachments/assets/78315862-9e91-4e0d-8273-cdfe8ef62b35" height="150"><img alt="strain relief printed part" src="https://github.com/user-attachments/assets/b5890f83-9582-43c6-afe7-d5bcc3c34970" height="150"><img alt="strain relief mounted part" src="https://github.com/user-attachments/assets/45a32c2b-312b-459a-b7a1-faeead4ab57b" height="150"><br>
 
+* __Custom PCB shield__<br>
+  This greatly reduces the necessary wiring. The upcoming case will be tailored to the dev board with the custom PCB attached. Feel free to <a href="https://www.sagdusmir.net" target="_blank"> contact me</a> in case you need one of these.
+  <br><img alt="custom pcdb" src="https://github.com/user-attachments/assets/1a100f20-1545-4d6e-9d9b-ac46b06bbd68" height="150"><br>
+
 * __Case__<br>This is still a WORK IN PROGRESS
   
 ### Wiring and Assembly
 
 #### Wiring
-
-This is still a WORK IN PROGRESS
-
-<br>
 <br>Wiring when using the usb-c port for delivering power (the most basic option):
 <br><img alt="wiring sketch with powering via usb-c" src="https://github.com/user-attachments/assets/e901f5aa-db8a-45a5-ae19-a759f69266a6" width="200">
 <br>Just connect the GasBuddy to the ESP32 Dev-Board. As always: the buzzer is optional.
@@ -156,7 +157,10 @@ This is still a WORK IN PROGRESS
 
 #### Assembly
 
-Upcoming, once the 3D model of the case is done.
+__The anclosure is still a WORK IN PROGRESS__
+<br>Upcoming, once the 3D model of the case is done.
+<br><img alt="wiring with optional custom shield pcb" src="https://github.com/user-attachments/assets/1f23ae11-e753-4404-919a-22e2f58d296e" width="200">
+<br><img alt="wiring with optional custom shield pcb closeup" src="https://github.com/user-attachments/assets/00399848-b081-4527-b3e2-581764d2572c" width="200">
 
 ## Uploading the software to the ESP
 
