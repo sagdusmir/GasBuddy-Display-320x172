@@ -1,4 +1,8 @@
 # Changelog
+* [2026-11-11] GBuddy 1.1.0
+   - more logging
+   - power down the GasBuddy when the backglight is off and no reading is required (power save)
+   - read the weight only once every 2 minutes when the backglight is off
 * [2026-11-01] GBuddy 1.0.1
    - initial public release
    - 3d model for enclosure missing; assembly instructions unfinished
