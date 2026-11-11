@@ -6,7 +6,7 @@ substitutions:
   # Name of the ESPHome device (modify if you like, avoid special characters)
   name: gasbuddy-display
   device_description: "Monitor an OW GasBuddy Scale"
-  version: "GBuddy 1.1.0"
+  version: "GBuddy 1.1.1"
 
   # either pull values from secrets.yaml
   # or have it directly in this file
@@ -91,6 +91,9 @@ substitutions:
 
   # interval for alarm sound
   Beeper_interval: "5s"
+  # The alert tone plays this many times while gas or battery stays low,
+  # then stays quiet. The count resets once both are back above their limits.
+  ALERT_PLAYS: "3"
 
   # sounds (in RTTTL syntax):
   Wifi_Connect_Sound: "dadi:d=16,o=6,b=140:d6,32p,e6"
@@ -367,9 +370,15 @@ interval:
             && (id(battery_soc_value) <= id(settings_min_soc_value_persistent));
           bool gas_low = id(gas_percent_seen)
             && (id(gas_percent) <= id(settings_min_gas_value_persistent));
-          if (soc_low || gas_low) {
-            id(my_rtttl).play("${Alert_Sound}");
+          if (!(soc_low || gas_low)) {
+            id(alert_plays) = 0;
+            return;
           }
+          if (id(alert_plays) >= ${ALERT_PLAYS}) {
+            return;
+          }
+          id(alert_plays)++;
+          id(my_rtttl).play("${Alert_Sound}");
   - interval: 1s
     then:
       - if:
@@ -439,6 +448,11 @@ globals:
   - id: warning_on
     type: bool
     initial_value: 'false'
+  # Alert tones already played for the current low-gas or low-battery episode.
+  - id: alert_plays
+    type: int
+    restore_value: no
+    initial_value: '0'
   - id: gas_weight
     type: int32_t
     initial_value: '-1'
