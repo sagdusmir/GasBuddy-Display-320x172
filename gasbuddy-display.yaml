@@ -148,8 +148,8 @@ esp32:
 #   speed: 80MHz
 
 logger:
-  baud_rate: 921600  # enable logging
-  # baud_rate: 0  # no logging -> saves power
+  # baud_rate: 921600  # enable logging
+  baud_rate: 0  # no logging -> saves power
 
 api: # enable Home Assistant API
   max_connections: 5
@@ -398,6 +398,7 @@ interval:
             id(uart_gasbuddy).read_byte(&buf[got++]);
           }
           if (got < 4) {
+            ESP_LOGE("uart_gasbuddy", "No weight: short reply (%d bytes), raw count unchanged", got);
             return;
           }
           // reply[2:3], big-endian. Kept on the device only.
@@ -1809,6 +1810,9 @@ lvgl:
                 id(settings_scale_bottle_kg_persistent) = id(settings_scale_bottle_kg);
                 id(calibration2_hundredths_persisted) = id(calibration2_hundredths);
                 id(settings_scale_brutto_persistent) = id(uart_gas_value);
+                ESP_LOGI("uart_gasbuddy", "Calibration saved: zero %d brutto %d bottle %d kg empty %d hundredths", id(settings_scale_raw_zero_persistent), id(settings_scale_brutto_persistent), id(settings_scale_bottle_kg_persistent), id(calibration2_hundredths_persisted));
+              } else {
+                ESP_LOGW("uart_gasbuddy", "Calibration not saved: no raw reading, so the gram label stays ---");
               }
       widgets:
         - label:
@@ -2200,6 +2204,7 @@ script:
     then:
       - lambda: |-
           if (!${DEMO_MODE} && id(uart_gas_value) < 0) {
+            ESP_LOGI("uart_gasbuddy", "No weight: no raw reading yet, label stays ---");
             return;
           }
           int64_t zero = id(settings_scale_raw_zero_persistent);
@@ -2281,8 +2286,16 @@ script:
           }
           const int64_t span = brutto - zero;
           const int64_t full_h = empty_h + fill_h;
-          if (span <= 0 || fill_h <= 0 || full_h <= 0) {
-            ESP_LOGI("uart_gasbuddy", "Calculated: no span (raw %d zero %d brutto %d)", (int) raw, (int) zero, (int) brutto);
+          const char *skip = nullptr;
+          if (span <= 0) {
+            skip = "saved brutto is not above saved zero";
+          } else if (fill_h <= 0) {
+            skip = "bottle fill weight is 0";
+          } else if (full_h <= 0) {
+            skip = "empty bottle plus fill is 0";
+          }
+          if (skip != nullptr) {
+            ESP_LOGI("uart_gasbuddy", "No weight: %s (raw %d zero %d brutto %d empty %d hundredths fill %d hundredths). Label stays ---", skip, (int) raw, (int) zero, (int) brutto, (int) empty_h, (int) fill_h);
             id(gas_time_known) = false;
             id(gasbuddy_time_left).publish_state(NAN);
             return;
@@ -2290,7 +2303,7 @@ script:
           const int64_t empty_count = zero + span * empty_h / full_h;
           const int64_t gas_span = brutto - empty_count;
           if (gas_span <= 0) {
-            ESP_LOGI("uart_gasbuddy", "Calculated: no gas span (raw %d zero %d brutto %d)", (int) raw, (int) zero, (int) brutto);
+            ESP_LOGI("uart_gasbuddy", "No weight: empty-bottle count is not below the full-bottle count (raw %d zero %d brutto %d empty-count %d empty %d hundredths fill %d hundredths). Label stays ---", (int) raw, (int) zero, (int) brutto, (int) empty_count, (int) empty_h, (int) fill_h);
             id(gas_time_known) = false;
             id(gasbuddy_time_left).publish_state(NAN);
             return;
