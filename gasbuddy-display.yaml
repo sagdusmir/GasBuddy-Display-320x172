@@ -6,7 +6,7 @@ substitutions:
   # Name of the ESPHome device (modify if you like, avoid special characters)
   name: gasbuddy-display
   device_description: "Monitor an OW GasBuddy Scale"
-  version: "GBuddy 1.0.1"
+  version: "GBuddy 1.1.0"
 
   # either pull values from secrets.yaml
   # or have it directly in this file
@@ -74,9 +74,15 @@ substitutions:
   # so the g/h estimate and the time-left label keep moving.
   DEMO_GRAMS_PER_HOUR: "300"
 
-  # How many remaining-gas readings form the g/h estimate. The scale is
-  # polled every 5 s, so 7 readings span about 30 s. Minimum is 2.
+  # How many remaining-gas readings form the g/h estimate. While the
+  # backlight is on the scale is polled every 5 s, so 7 readings span
+  # about 30 s. With the backlight off the scale is read every 2 minutes,
+  # so the same 7 readings span about 12 minutes. Minimum is 2.
   GAS_RATE_SAMPLES: "7"
+
+  # Milliseconds the scale rail must be up before a reading. An idle
+  # poll turns the regulator on, waits this long, then asks for the count.
+  SCALE_SETTLE_MS: "2000"
 
   # g/h below this hides the weight-page rate cluster. A rate at or
   # above it is shown with the fire icon, segment digits,
@@ -118,8 +124,12 @@ esphome:
   on_boot:
     # priority: 1100 # stay above 1000 and below 1500!  # CHANGE FOR MINI
     then:
-      - output.turn_on: scale_power  # keep scale powered (testing)
-      - lambda: id(boot_start_time) = millis();
+      - output.turn_on: scale_power
+      - lambda: |-
+          id(boot_start_time) = millis();
+          id(scale_powered_at) = millis();
+          id(scale_rail_on) = true;
+          id(backlight_on) = true;
       - light.turn_on: backlight
 
 esp32:
@@ -156,12 +166,6 @@ api: # enable Home Assistant API
   encryption:
     key: ${api_encryption_key}
   reboot_timeout: 0s  
-
-http_request:
-  # optional global defaults (recommended for reliability)
-  timeout: 5s
-  verify_ssl: true
-  follow_redirects: true
 
 ota:
   - platform: esphome
@@ -249,6 +253,13 @@ touchscreen:
             - lvgl.resume:
             - lvgl.widget.redraw:
             - light.turn_on: backlight
+            - lambda: id(backlight_on) = true;
+            - script.execute: scale_power_on
+            - if:
+                condition:
+                  lambda: 'return !${DEMO_MODE};'
+                then:
+                  - script.execute: reset_gas_consumption
 
 spi:  # used for display
   clk_pin: GPIO1
@@ -308,7 +319,9 @@ output:
     id: rtttl_out
     pin: GPIO5
 
-  # Scale power enable (S7V8F5 SHDN). Held high = scale always on during testing.
+  # Scale power enable (S7V8F5 SHDN). High = 5 V rail on.
+  # The rail stays on while the backlight is on. While the backlight is
+  # off it is on only for one settled reading every 2 minutes.
   - platform: gpio
     id: scale_power
     pin: GPIO4
@@ -378,35 +391,46 @@ interval:
 
   - interval: 5s
     then:
-      - lambda: |-
-          uint8_t discard;
-          while (id(uart_gasbuddy).available()) {
-            id(uart_gasbuddy).read_byte(&discard);
-          }
-      - uart.write:
-          id: uart_gasbuddy
-          data: [0xAA, 0x14, 0xC3, 0x3C]
-      - delay: 100ms
-      - lambda: |-
-          if (id(uart_gasbuddy).available() < 4) {
-            ESP_LOGE("uart_gasbuddy", "No Data");
-            return;
-          }
-          uint8_t buf[64];
-          int got = 0;
-          while (id(uart_gasbuddy).available() && got < (int) sizeof(buf)) {
-            id(uart_gasbuddy).read_byte(&buf[got++]);
-          }
-          if (got < 4) {
-            ESP_LOGE("uart_gasbuddy", "No weight: short reply (%d bytes), raw count unchanged", got);
-            return;
-          }
-          // reply[2:3], big-endian. Kept on the device only.
-          const uint16_t value = (uint16_t(buf[2]) << 8) | buf[3];
-          id(uart_gas_value) = value;
-          ESP_LOGI("uart_gasbuddy", "Parsed value: %u", value);
-      - lvgl.widget.refresh: uart_raw_value
-      - script.execute: update_remaining_gas
+      - if:
+          condition:
+            lambda: |-
+              // Demo keeps this cadence with the backlight off, and it
+              // does not switch the scale rail.
+              if (${DEMO_MODE}) {
+                return true;
+              }
+              if (!id(backlight_on) && !id(scale_hold)) {
+                return false;
+              }
+              if (!id(scale_rail_on)) {
+                return false;
+              }
+              if (millis() - id(scale_powered_at) < ${SCALE_SETTLE_MS}) {
+                return false;
+              }
+              return true;
+          then:
+            - script.execute: poll_gas_scale
+
+  # One settled reading every 2 minutes while the backlight is off.
+  - interval: 2min
+    then:
+      - if:
+          condition:
+            lambda: 'return !${DEMO_MODE} && !id(backlight_on) && !id(scale_hold);'
+          then:
+            - lambda: 'ESP_LOGI("uart_gasbuddy", "Idle scale reading");'
+            - script.execute: scale_power_on
+            - delay: ${SCALE_SETTLE_MS}ms
+            - if:
+                condition:
+                  lambda: 'return !id(backlight_on) && !id(scale_hold);'
+                then:
+                  # poll_gas_scale turns the rail off after the reply.
+                  # Do not turn it off here: script.execute returns as soon
+                  # as that script hits its 100 ms wait, so a power-off in
+                  # this list would kill the rail before the scale answers.
+                  - script.execute: poll_gas_scale
 
 globals:
   - id: wifi_connected
@@ -419,8 +443,9 @@ globals:
     type: int32_t
     initial_value: '-1'
 
-  # Bumped when the calibration wizard closes with Done, so the g/h
-  # window drops samples from the previous calibration.
+  # Bumped when the calibration wizard closes with Done, and when the
+  # backlight turns on or off, so the g/h window does not mix the 5 s
+  # samples with the 2-minute samples.
   - id: gas_rate_epoch
     type: int
     restore_value: no
@@ -441,6 +466,29 @@ globals:
     type: bool
     restore_value: no
     initial_value: 'false'
+
+  # Backlight is on from boot. Idle clears it; a touch sets it again.
+  - id: backlight_on
+    type: bool
+    restore_value: no
+    initial_value: 'true'
+  # Calibration pages keep the rail on even if the backlight times out,
+  # so Continue and Done do not store a stale raw count.
+  - id: scale_hold
+    type: bool
+    restore_value: no
+    initial_value: 'false'
+  # True while GPIO4 is driving the regulator on.
+  - id: scale_rail_on
+    type: bool
+    restore_value: no
+    initial_value: 'false'
+  # millis() when the rail last went from off to on. Polls wait
+  # SCALE_SETTLE_MS after this.
+  - id: scale_powered_at
+    type: uint32_t
+    restore_value: no
+    initial_value: '0'
 
   # Raw GasBuddy UART reading (reply bytes [2:3]). Not published.
   - id: uart_gas_value
@@ -806,6 +854,13 @@ lvgl:
           - logger.log: "Display is idle"
           - light.turn_off: backlight
           - lvgl.pause:
+          - lambda: id(backlight_on) = false;
+          - script.execute: scale_power_off_if_idle
+          - if:
+              condition:
+                lambda: 'return !${DEMO_MODE};'
+              then:
+                - script.execute: reset_gas_consumption
 
   # boot screen with spinner - just for fun
   top_layer:
@@ -934,6 +989,10 @@ lvgl:
       bg_opa: COVER
       pad_all: 0
       scrollable: false
+      on_load:
+        then:
+          - lambda: id(scale_hold) = false;
+          - script.execute: scale_power_off_if_idle
       widgets:
         - label:
             id: weight_label_background
@@ -1362,9 +1421,11 @@ lvgl:
       on_load:
         then:
           - lambda: |-
+              id(scale_hold) = true;
               id(settings_scale_raw_zero) = id(settings_scale_raw_zero_persistent);
               id(settings_scale_bottle_kg) = id(settings_scale_bottle_kg_persistent);
               id(calibration2_hundredths) = id(calibration2_hundredths_persisted);
+          - script.execute: scale_power_on
       widgets:
         - label:
             id: calibration0_label
@@ -2197,6 +2258,72 @@ binary_sensor:
     name: "Status ESP"
 
 script:
+  # Off-to-on edge of the scale rail. A rail that is already up does not
+  # restart the settle wait.
+  - id: scale_power_on
+    then:
+      - if:
+          condition:
+            lambda: 'return !${DEMO_MODE};'
+          then:
+            - lambda: |-
+                if (!id(scale_rail_on)) {
+                  id(scale_powered_at) = millis();
+                }
+                id(scale_rail_on) = true;
+            - output.turn_on: scale_power
+
+  # Drops the rail only while the backlight is off and the wizard is closed.
+  - id: scale_power_off_if_idle
+    then:
+      - if:
+          condition:
+            lambda: 'return !${DEMO_MODE} && !id(backlight_on) && !id(scale_hold);'
+          then:
+            - lambda: |-
+                if (id(scale_rail_on)) {
+                  ESP_LOGI("uart_gasbuddy", "Scale rail off");
+                }
+                id(scale_rail_on) = false;
+            - output.turn_off: scale_power
+
+  # One UART poll, then grams and g/h. Turns the rail off afterwards when
+  # the backlight is off. mode single so the 5 s and 2 min callers cannot
+  # overlap on the bus.
+  - id: poll_gas_scale
+    mode: single
+    then:
+      - lambda: |-
+          uint8_t discard;
+          while (id(uart_gasbuddy).available()) {
+            id(uart_gasbuddy).read_byte(&discard);
+          }
+      - uart.write:
+          id: uart_gasbuddy
+          data: [0xAA, 0x14, 0xC3, 0x3C]
+      - delay: 100ms
+      - lambda: |-
+          if (id(uart_gasbuddy).available() < 4) {
+            ESP_LOGE("uart_gasbuddy", "No Data");
+            return;
+          }
+          uint8_t buf[64];
+          int got = 0;
+          while (id(uart_gasbuddy).available() && got < (int) sizeof(buf)) {
+            id(uart_gasbuddy).read_byte(&buf[got++]);
+          }
+          if (got < 4) {
+            ESP_LOGE("uart_gasbuddy", "No weight: short reply (%d bytes), raw count unchanged", got);
+            return;
+          }
+          // reply[2:3], big-endian. Kept on the device only.
+          const uint16_t value = (uint16_t(buf[2]) << 8) | buf[3];
+          id(uart_gas_value) = value;
+          ESP_LOGI("uart_gasbuddy", "Parsed value: %u", value);
+      - lvgl.widget.refresh: uart_raw_value
+      - script.execute: update_remaining_gas
+      - script.execute: scale_power_off_if_idle
+
   # Remaining gas from the last saved calibration. UART readings are raw
   # counts, not grams. Zero is the empty platform, brutto is the full bottle.
   # The known empty-bottle and fill masses only mark where 0% sits in that span.
@@ -2323,6 +2450,9 @@ script:
             percent = 100;
           }
           int gas_g = (int) (fill_h * 10 * percent / 100);
+          // Whole percents stay on the label. The slope uses fractional
+          // grams, because a sample every 2 minutes rarely crosses a percent.
+          const double exact_g = (double) fill_h * 10.0 * (double) gas_count / (double) gas_span;
           if (${DEMO_MODE}) {
             gas_g = (int) (demo_g + 0.5);
             if (gas_g < 0) {
@@ -2348,7 +2478,7 @@ script:
           }
           if (kRateN >= 2) {
             const uint32_t now_ms = millis();
-            const double sample_g = ${DEMO_MODE} ? demo_g : (double) gas_g;
+            const double sample_g = ${DEMO_MODE} ? demo_g : exact_g;
             hist_g[hist_next] = sample_g;
             hist_ms[hist_next] = now_ms;
             hist_next = (hist_next + 1) % kRateN;
@@ -2387,7 +2517,7 @@ script:
                 id(gas_rate_g_per_h) = g_per_h;
                 id(gas_rate_known) = true;
                 id(gasbuddy_gas_consumption).publish_state(g_per_h);
-                const double remain_g = ${DEMO_MODE} ? demo_g : (double) gas_g;
+                const double remain_g = ${DEMO_MODE} ? demo_g : exact_g;
                 if (!(g_per_h >= ${GAS_RATE_STABLE_LIMIT}) || !(remain_g >= 0) || !std::isfinite(remain_g)) {
                   id(gas_time_known) = false;
                   id(gasbuddy_time_left).publish_state(NAN);
