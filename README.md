@@ -161,7 +161,7 @@ __The anclosure is still a WORK IN PROGRESS__
 <br>Upcoming, once the 3D model of the case is done.
 <br><img alt="wiring with optional custom shield pcb" src="https://github.com/user-attachments/assets/1f23ae11-e753-4404-919a-22e2f58d296e" width="200">
 <br><img alt="wiring with optional custom shield pcb closeup" src="https://github.com/user-attachments/assets/00399848-b081-4527-b3e2-581764d2572c" width="200" title="closeup of the Pololu S7V8F5 mounted between the dev board and the scale shield">
-<br>There a different options for mounting the Pololu S7V8F5. Connect it either by wire, between the boards, or on top of the shield. Make sure to have the soldering pads match the pads om the shield - you can simply flip it if you need to.
+<br>There a different options for mounting the Pololu S7V8F5. Connect it either by wire, between the boards, or on top of the shield. Make sure to have the soldering pads match the pads on the shield - you can simply flip it to reverse the pad order if you need to.
 
 ## Uploading the software to the ESP
 
