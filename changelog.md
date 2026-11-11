@@ -1,4 +1,6 @@
 # Changelog
+* [2026-11-11] GBuddy 1.1.1
+   - limit the alert plays to 3
 * [2026-11-11] GBuddy 1.1.0
    - more logging
    - power down the GasBuddy when the backglight is off and no reading is required (power save)
