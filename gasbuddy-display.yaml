@@ -1308,8 +1308,8 @@ lvgl:
               if (grams < 0) {
                 grams = 0;
               }
-              if (grams > 9999) {
-                grams = 9999;
+              if (grams > 1999) {
+                grams = 1999;
               }
               static char buf[8];
               snprintf(buf, sizeof(buf), "%d", grams);
