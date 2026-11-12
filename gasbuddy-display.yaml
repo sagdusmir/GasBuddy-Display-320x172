@@ -86,9 +86,10 @@ substitutions:
   # poll turns the regulator on, waits this long, then asks for the count.
   SCALE_SETTLE_MS: "2000"
 
-  # g/h below this hides the weight-page rate cluster. A rate at or
-  # above it is shown with the fire icon, segment digits,
-  # and "g/h". Time left uses the same threshold.
+  # No known rate, or a rate below this, leaves the live rate and hours
+  # blank so the ghosts show through. "g/h", the fire icon, and the
+  # hourglass use color_00 in that case. "h" uses color_00 while the
+  # hours are blank.
   GAS_RATE_STABLE_LIMIT: "100"
 
   # interval for alarm sound
@@ -1245,6 +1246,8 @@ lvgl:
                   text: " "
         # Fire icon, ghost "1888", live g/h, then Montserrat "g/h".
         # The value is right-aligned so unused leading ghost digits stay visible.
+        # With no known rate, or a rate below GAS_RATE_STABLE_LIMIT, the
+        # digits stay blank and "g/h" and the fire icon use color_00.
         - label:
             id: weight_rate_icon
             align: TOP_LEFT
@@ -1257,12 +1260,11 @@ lvgl:
             border_width: 0
             text_font: ICON_FONT_22
             text_align: LEFT
-            text_color: !lambda return lv_color_hex(id(color_100));
-            hidden: !lambda |-
-              if (!id(gas_rate_known)) {
-                return true;
+            text_color: !lambda |-
+              if (!id(gas_rate_known) || id(gas_rate_g_per_h) < ${GAS_RATE_STABLE_LIMIT}) {
+                return lv_color_hex(id(color_00));
               }
-              return id(gas_rate_g_per_h) < ${GAS_RATE_STABLE_LIMIT};
+              return lv_color_hex(id(color_100));
             text: "\U000F0238"
         - label:
             id: weight_rate_background
@@ -1277,11 +1279,6 @@ lvgl:
             text_font: SEGMENT_FONT_24
             text_align: RIGHT
             text_color: !lambda return lv_color_hex(id(color_25));
-            hidden: !lambda |-
-              if (!id(gas_rate_known)) {
-                return true;
-              }
-              return id(gas_rate_g_per_h) < ${GAS_RATE_STABLE_LIMIT};
             text: "1888"
         - label:
             id: weight_rate_value
@@ -1295,11 +1292,6 @@ lvgl:
             text_font: SEGMENT_FONT_24
             text_align: RIGHT
             text_color: !lambda return lv_color_hex(id(color_100));
-            hidden: !lambda |-
-              if (!id(gas_rate_known)) {
-                return true;
-              }
-              return id(gas_rate_g_per_h) < ${GAS_RATE_STABLE_LIMIT};
             text: !lambda |-
               if (!id(gas_rate_known) || id(gas_rate_g_per_h) < ${GAS_RATE_STABLE_LIMIT}) {
                 return "";
@@ -1326,18 +1318,19 @@ lvgl:
             border_width: 0
             text_font: MONTSERRAT_18
             text_align: LEFT
-            text_color: !lambda return lv_color_hex(id(color_100));
-            hidden: !lambda |-
-              if (!id(gas_rate_known)) {
-                return true;
+            text_color: !lambda |-
+              if (!id(gas_rate_known) || id(gas_rate_g_per_h) < ${GAS_RATE_STABLE_LIMIT}) {
+                return lv_color_hex(id(color_00));
               }
-              return id(gas_rate_g_per_h) < ${GAS_RATE_STABLE_LIMIT};
+              return lv_color_hex(id(color_100));
             text: "g/h"
         # Ghost "88.8", live hours on top, then "h" and the empty hourglass.
         # The decimal is zero-width, and both labels are right-aligned, so
         # "6.0" leaves the leading ghost 8 visible. Do not zero-pad.
-        # Hidden until a rate exists, and while that rate is below
-        # GAS_RATE_STABLE_LIMIT. Otherwise the hours or "--.-" are shown.
+        # The ghost stays visible. The hours stay blank until a known rate
+        # is at or above GAS_RATE_STABLE_LIMIT and the remaining time is
+        # known and non-negative. "h" uses color_00 while the hours are
+        # blank. The hourglass follows the rate, same as the fire icon.
         - label:
             id: weight_time_background
             align: TOP_LEFT
@@ -1351,11 +1344,6 @@ lvgl:
             text_font: SEGMENT_FONT_24
             text_align: RIGHT
             text_color: !lambda return lv_color_hex(id(color_25));
-            hidden: !lambda |-
-              if (!id(gas_rate_known)) {
-                return true;
-              }
-              return id(gas_rate_g_per_h) < ${GAS_RATE_STABLE_LIMIT};
             text: "88.8"
         - label:
             id: weight_time_value
@@ -1369,18 +1357,13 @@ lvgl:
             text_font: SEGMENT_FONT_24
             text_align: RIGHT
             text_color: !lambda return lv_color_hex(id(color_100));
-            hidden: !lambda |-
-              if (!id(gas_rate_known)) {
-                return true;
-              }
-              return id(gas_rate_g_per_h) < ${GAS_RATE_STABLE_LIMIT};
             text: !lambda |-
-              if (!id(gas_time_known)) {
-                return "--.-";
+              if (!id(gas_rate_known) || id(gas_rate_g_per_h) < ${GAS_RATE_STABLE_LIMIT} || !id(gas_time_known)) {
+                return "";
               }
               float h = id(gas_time_h);
               if (!(h >= 0.0f)) {
-                return "--.-";
+                return "";
               }
               if (h > 99.9f) {
                 h = 99.9f;
@@ -1400,12 +1383,14 @@ lvgl:
             border_width: 0
             text_font: MONTSERRAT_18
             text_align: LEFT
-            text_color: !lambda return lv_color_hex(id(color_100));
-            hidden: !lambda |-
-              if (!id(gas_rate_known)) {
-                return true;
+            text_color: !lambda |-
+              if (!id(gas_rate_known) || id(gas_rate_g_per_h) < ${GAS_RATE_STABLE_LIMIT} || !id(gas_time_known)) {
+                return lv_color_hex(id(color_00));
               }
-              return id(gas_rate_g_per_h) < ${GAS_RATE_STABLE_LIMIT};
+              if (!(id(gas_time_h) >= 0.0f)) {
+                return lv_color_hex(id(color_00));
+              }
+              return lv_color_hex(id(color_100));
             text: "h"
         - label:
             id: weight_time_icon
@@ -1419,12 +1404,11 @@ lvgl:
             border_width: 0
             text_font: ICON_FONT_22
             text_align: LEFT
-            text_color: !lambda return lv_color_hex(id(color_100));
-            hidden: !lambda |-
-              if (!id(gas_rate_known)) {
-                return true;
+            text_color: !lambda |-
+              if (!id(gas_rate_known) || id(gas_rate_g_per_h) < ${GAS_RATE_STABLE_LIMIT}) {
+                return lv_color_hex(id(color_00));
               }
-              return id(gas_rate_g_per_h) < ${GAS_RATE_STABLE_LIMIT};
+              return lv_color_hex(id(color_100));
             text: "\U000F06AD"
 
   # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
