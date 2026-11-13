@@ -1696,6 +1696,7 @@ lvgl:
                   id(calibration2_hundredths) = next;
               - lvgl.slider.update:
                   id: calibration2_slider
+                  animated: false
                   value: !lambda return id(calibration2_hundredths);
               - lvgl.label.update:
                   id: calibration2_label
@@ -1732,6 +1733,7 @@ lvgl:
                   id(calibration2_hundredths) = next;
               - lvgl.slider.update:
                   id: calibration2_slider
+                  animated: false
                   value: !lambda return id(calibration2_hundredths);
               - lvgl.label.update:
                   id: calibration2_label
@@ -1758,11 +1760,16 @@ lvgl:
                   const int lo = ${CALIBRATION2_MIN_HUNDREDTHS};
                   const int hi = ${CALIBRATION2_MAX_HUNDREDTHS};
                   const int step = ${CALIBRATION2_STEP_HUNDREDTHS};
-                  int snapped = ((x - lo + step / 2) / step) * step + lo;
+                  // x is float. Integer division is required: float division
+                  // turns a 50 g step into +20 g and each event walks further.
+                  int v = (int) x;
+                  if (v < lo) v = lo;
+                  if (v > hi) v = hi;
+                  int snapped = ((v - lo + step / 2) / step) * step + lo;
                   if (snapped < lo) snapped = lo;
                   if (snapped > hi) snapped = hi;
                   id(calibration2_hundredths) = snapped;
-                  if (snapped != x) {
+                  if (snapped != v) {
                     lv_slider_set_value(calibration2_slider, snapped, LV_ANIM_OFF);
                   }
               - lvgl.label.update:
