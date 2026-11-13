@@ -14,13 +14,15 @@ This repository is a variation of the hardware used for https://github.com/sagdu
 Focus: **mobile, cloud-independent, G32-independent** GasBuddy display — no cloud login, no Otto Wilde servers, no G32. Gas weight is read from the scale over UART. Direct connection between GasBuddy and this device is required.
 
 <br>Bare device during testing:<br>
-<img alt="Teaser Weight (stable)" src="https://github.com/user-attachments/assets/3c9aea37-8a9c-4735-af00-636dbedb936c" height="150">
-<img alt="Teaser Weight (with estimations)" src="https://github.com/user-attachments/assets/fba590d7-4069-487e-86dd-4b6b0c9427ca" height="150">
-<img alt="Teaser Info Screen" src="https://github.com/user-attachments/assets/2e43ae65-6193-4e49-8d6d-b8ed81eb401d" height="150">
-<img alt="Teaser Calibration Wizard 1" src="https://github.com/user-attachments/assets/0c6052d1-c81f-4c70-a572-ac35e10ca549" height="150">
-<img alt="Teaser Calibration Wizard 2" src="https://github.com/user-attachments/assets/8fd18e69-6506-4639-9411-7b2b00718376" height="150">
-<img alt="Teaser Calibration Wizard 3" src="https://github.com/user-attachments/assets/f715eefd-7fc7-4a90-8829-cfd422277bed" height="150">
-<img alt="Teaser Calibration Wizard 4" src="https://github.com/user-attachments/assets/69bfee5c-aaab-481d-b894-ae7fac2a446c" height="150">
+
+<img alt="Waiting for data" src="https://github.com/user-attachments/assets/111546de-728e-4d55-b2c9-2621366e3aa1" height="150">
+<img alt="Weight (stable)" src="https://github.com/user-attachments/assets/7ce787bd-cf2a-4c44-9477-17e86403b273" height="150">
+<img alt="Weight (with estimations)" src="https://github.com/user-attachments/assets/fba590d7-4069-487e-86dd-4b6b0c9427ca" height="150">
+<img alt="Info Screen" src="https://github.com/user-attachments/assets/2e43ae65-6193-4e49-8d6d-b8ed81eb401d" height="150">
+<img alt="Calibration Wizard 1" src="https://github.com/user-attachments/assets/0c6052d1-c81f-4c70-a572-ac35e10ca549" height="150">
+<img alt="Calibration Wizard 2" src="https://github.com/user-attachments/assets/8fd18e69-6506-4639-9411-7b2b00718376" height="150">
+<img alt="Calibration Wizard 3" src="https://github.com/user-attachments/assets/f715eefd-7fc7-4a90-8829-cfd422277bed" height="150">
+<img alt="Calibration Wizard 4" src="https://github.com/user-attachments/assets/69bfee5c-aaab-481d-b894-ae7fac2a446c" height="150">
 <img alt="Home Assistant device page: Controls, Sensors and Diagnostic" src="https://github.com/user-attachments/assets/c1edc575-086f-45c1-95d1-62cefc462ac5" height="150">
 <br>
 <br>
