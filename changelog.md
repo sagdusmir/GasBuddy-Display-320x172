@@ -1,4 +1,8 @@
 # Changelog
+* [2026-11-13] GBuddy 1.1.2
+   - change tare weight now in 50g steps instead of 10g
+   - cap gas consumption rate to 1999 max for displaying
+   - alway show gas consumption and remaining time as background shadows
 * [2026-11-11] GBuddy 1.1.1
    - limit the alert plays to 3
 * [2026-11-11] GBuddy 1.1.0
