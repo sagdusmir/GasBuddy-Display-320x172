@@ -6,7 +6,7 @@ substitutions:
   # Name of the ESPHome device (modify if you like, avoid special characters)
   name: gasbuddy-display
   device_description: "Monitor an OW GasBuddy Scale"
-  version: "GBuddy 1.1.2"
+  version: "GBuddy 1.2.0"
 
   # either pull values from secrets.yaml
   # or have it directly in this file
@@ -511,6 +511,12 @@ globals:
   - id: uart_gas_value
     type: int32_t
     initial_value: '-1'
+  # Status-bar GasBuddy link: 0 = no attempt yet, 1 = last reply decoded,
+  # 2 = last attempt failed. Starts at 0 every boot.
+  - id: gasbuddy_link
+    type: int
+    restore_value: no
+    initial_value: '0'
 
   - id: gas_percent
     type: int32_t
@@ -756,6 +762,12 @@ font:
       - "-"
   - file: 'https://raw.githubusercontent.com/sagdusmir/GasBuddy-Display-320x172/main/fonts/MaterialDesign-Webfont/materialdesignicons-webfont.ttf'
     # file: 'fonts/MaterialDesign-Webfont/materialdesignicons-webfont.ttf'
+    id: ICON_FONT_23
+    size: 23
+    glyphs:
+      - "\U000F0D3D" # mdi-transit-connection-variant
+  - file: 'https://raw.githubusercontent.com/sagdusmir/GasBuddy-Display-320x172/main/fonts/MaterialDesign-Webfont/materialdesignicons-webfont.ttf'
+    # file: 'fonts/MaterialDesign-Webfont/materialdesignicons-webfont.ttf'
     id: ICON_FONT_22
     size: 22
     glyphs:
@@ -966,9 +978,25 @@ lvgl:
                   }
                   return lv_color_hex(id(color_00));
                 text: "\uF1EB" # WIFI symbol
+            - label: # GasBuddy UART link
+                id: gasbuddy_connect_label
+                x: 228
+                y: 0
+                text_font: ICON_FONT_23
+                text_align: LEFT
+                width: 24
+                text_color: !lambda |-
+                  if (id(gasbuddy_link) == 1) {
+                    return lv_color_hex(id(color_good));
+                  }
+                  if (id(gasbuddy_link) == 2) {
+                    return lv_color_hex(id(color_bad));
+                  }
+                  return lv_color_hex(id(color_00));
+                text: "\U000F0D3D" # mdi-transit-connection-variant
             - label:
                 id: warning_on_label
-                x: 228
+                x: 201
                 y: 2
                 text_font: MONTSERRAT_20
                 text_color: !lambda |-
@@ -2334,6 +2362,7 @@ script:
       - delay: 100ms
       - lambda: |-
           if (id(uart_gasbuddy).available() < 4) {
+            id(gasbuddy_link) = 2;
             ESP_LOGE("uart_gasbuddy", "No Data");
             return;
           }
@@ -2343,14 +2372,18 @@ script:
             id(uart_gasbuddy).read_byte(&buf[got++]);
           }
           if (got < 4) {
+            id(gasbuddy_link) = 2;
             ESP_LOGE("uart_gasbuddy", "No weight: short reply (%d bytes), raw count unchanged", got);
             return;
           }
           // reply[2:3], big-endian. Kept on the device only.
           const uint16_t value = (uint16_t(buf[2]) << 8) | buf[3];
           id(uart_gas_value) = value;
+          id(gasbuddy_link) = 1;
           ESP_LOGI("uart_gasbuddy", "Parsed value: %u", value);
-      - lvgl.widget.refresh: uart_raw_value
+      - lvgl.widget.refresh:
+          - uart_raw_value
+          - gasbuddy_connect_label
       - script.execute: update_remaining_gas
       - script.execute: scale_power_off_if_idle
 
@@ -2702,6 +2735,7 @@ script:
       - lvgl.widget.refresh:
           - battery_symbol
           - wifi_connect_label
+          - gasbuddy_connect_label
           - warning_on_label
       - delay: 1ms
 
