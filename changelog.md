@@ -1,4 +1,6 @@
 # Changelog
+* [2026-11-16] GBuddy 1.2.0
+   - add gasbuddy connection status icon
 * [2026-11-11] GBuddy 1.1.1
    - limit the alert plays to 3
 * [2026-11-11] GBuddy 1.1.0
