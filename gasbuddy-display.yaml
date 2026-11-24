@@ -708,6 +708,15 @@ font:
     glyphs:
       - "\U000F0415" # mdi-plus
       - "\U000F0374" # mdi-minus
+      - "\U000F0156" # mdi-close
+      - "\U000F0142" # mdi-chevron-right
+      - "\U000F012C" # mdi-check
+    # The icon font has no space glyph. A Montserrat space separates the chevrons.
+    extras:
+      - file: 'https://raw.githubusercontent.com/sagdusmir/GasBuddy-Display-320x172/main/fonts/Montserrat/Montserrat-Bold.ttf'
+        # file: 'fonts/Montserrat/Montserrat-Bold.ttf'
+        glyphs:
+          - " "
   - file: 'https://raw.githubusercontent.com/sagdusmir/GasBuddy-Display-320x172/main/fonts/MaterialDesign-Webfont/materialdesignicons-webfont.ttf'
     # file: 'fonts/MaterialDesign-Webfont/materialdesignicons-webfont.ttf'
     id: ICON_FONT_39
@@ -1468,10 +1477,34 @@ lvgl:
             text_color: !lambda return lv_color_hex(id(color_100));
             text: "Remove Gas Bottle from GasBuddy"
         - button:
-            id: calibration0_next_button
+            id: calibration0_abort_button
             x: 14
             y: 136
-            width: 292
+            width: 142
+            height: 36
+            pad_all: 0
+            scrollable: false
+            radius: 0
+            bg_opa: COVER
+            bg_color: !lambda return lv_color_hex(id(color_50));
+            shadow_color: !lambda return lv_color_hex(id(color_25));
+            widgets:
+              - label:
+                  id: calibration0_abort_button_label
+                  align: CENTER
+                  width: 142
+                  text_font: ICON_FONT_30
+                  text_align: CENTER
+                  text_color: !lambda return lv_color_hex(id(color_100));
+                  bg_color: !lambda return lv_color_hex(id(color_50));
+                  text: "\U000F0156" # mdi-close
+            on_click:
+              - lvgl.page.show: scale_page
+        - button:
+            id: calibration0_next_button
+            x: 164
+            y: 136
+            width: 142
             height: 36
             pad_all: 0
             scrollable: false
@@ -1483,21 +1516,21 @@ lvgl:
               - label:
                   id: calibration0_next_button_label
                   align: CENTER
-                  width: 292
-                  text_font: MONTSERRAT_20
+                  width: 142
+                  text_font: ICON_FONT_30
                   text_align: CENTER
                   text_color: !lambda return lv_color_hex(id(color_100));
                   bg_color: !lambda return lv_color_hex(id(color_50));
-                  text: "Continue"
+                  text: "\U000F0142 \U000F0142 \U000F0142" # mdi-chevron-right
             on_click:
               - lambda: |-
                   if (id(uart_gas_value) >= 0) {
                     id(settings_scale_raw_zero) = id(uart_gas_value);
                   }
-              - lvgl.page.show: calibration1_page
+              - lvgl.page.show: calibration1full_page
 
   # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-    - id: calibration1_page
+    - id: calibration1full_page
       skip: true
       bg_color: 0
       bg_opa: COVER
@@ -1508,7 +1541,7 @@ lvgl:
           - script.execute: show_scale_bottle_kg_selection
       widgets:
         - label:
-            id: calibration1_label
+            id: calibration1full_label
             x: 14
             y: 42
             width: 292
@@ -1633,10 +1666,10 @@ lvgl:
               - lambda: id(settings_scale_bottle_kg) = id(scale_bottle_kg_options)[2];
               - script.execute: show_scale_bottle_kg_selection
         - button:
-            id: calibration1_next_button
+            id: calibration1full_abort_button
             x: 14
             y: 136
-            width: 292
+            width: 142
             height: 36
             pad_all: 0
             scrollable: false
@@ -1646,14 +1679,38 @@ lvgl:
             shadow_color: !lambda return lv_color_hex(id(color_25));
             widgets:
               - label:
-                  id: calibration1_next_button_label
+                  id: calibration1full_abort_button_label
                   align: CENTER
-                  width: 292
-                  text_font: MONTSERRAT_20
+                  width: 142
+                  text_font: ICON_FONT_30
                   text_align: CENTER
                   text_color: !lambda return lv_color_hex(id(color_100));
                   bg_color: !lambda return lv_color_hex(id(color_50));
-                  text: "Continue"
+                  text: "\U000F0156" # mdi-close
+            on_click:
+              - lvgl.page.show: scale_page
+        - button:
+            id: calibration1full_next_button
+            x: 164
+            y: 136
+            width: 142
+            height: 36
+            pad_all: 0
+            scrollable: false
+            radius: 0
+            bg_opa: COVER
+            bg_color: !lambda return lv_color_hex(id(color_50));
+            shadow_color: !lambda return lv_color_hex(id(color_25));
+            widgets:
+              - label:
+                  id: calibration1full_next_button_label
+                  align: CENTER
+                  width: 142
+                  text_font: ICON_FONT_30
+                  text_align: CENTER
+                  text_color: !lambda return lv_color_hex(id(color_100));
+                  bg_color: !lambda return lv_color_hex(id(color_50));
+                  text: "\U000F0142 \U000F0142 \U000F0142" # mdi-chevron-right
             on_click:
               - lvgl.page.show: calibration2_page
 
@@ -1820,10 +1877,34 @@ lvgl:
             text_color: !lambda return lv_color_hex(id(color_100));
             text: "Gas bottle tare"
         - button:
-            id: calibration2_ok_button
+            id: calibration2_abort_button
             x: 14
             y: 136
-            width: 292
+            width: 142
+            height: 36
+            pad_all: 0
+            scrollable: false
+            radius: 0
+            bg_opa: COVER
+            bg_color: !lambda return lv_color_hex(id(color_50));
+            shadow_color: !lambda return lv_color_hex(id(color_25));
+            widgets:
+              - label:
+                  id: calibration2_abort_button_label
+                  align: CENTER
+                  width: 142
+                  text_font: ICON_FONT_30
+                  text_align: CENTER
+                  text_color: !lambda return lv_color_hex(id(color_100));
+                  bg_color: !lambda return lv_color_hex(id(color_50));
+                  text: "\U000F0156" # mdi-close
+            on_click:
+              - lvgl.page.show: scale_page
+        - button:
+            id: calibration2_ok_button
+            x: 164
+            y: 136
+            width: 142
             height: 36
             pad_all: 0
             scrollable: false
@@ -1835,12 +1916,12 @@ lvgl:
               - label:
                   id: calibration2_ok_button_label
                   align: CENTER
-                  width: 292
-                  text_font: MONTSERRAT_20
+                  width: 142
+                  text_font: ICON_FONT_30
                   text_align: CENTER
                   text_color: !lambda return lv_color_hex(id(color_100));
                   bg_color: !lambda return lv_color_hex(id(color_50));
-                  text: "Continue"
+                  text: "\U000F0142 \U000F0142 \U000F0142" # mdi-chevron-right
             on_click:
               - lvgl.page.show: calibration3_page
 
@@ -1881,11 +1962,11 @@ lvgl:
                   id: calibration3_abort_button_label
                   align: CENTER
                   width: 142
-                  text_font: MONTSERRAT_20
+                  text_font: ICON_FONT_30
                   text_align: CENTER
                   text_color: !lambda return lv_color_hex(id(color_100));
                   bg_color: !lambda return lv_color_hex(id(color_50));
-                  text: "Abort"
+                  text: "\U000F0156" # mdi-close
             on_click:
               - lvgl.page.show: scale_page
         - button:
@@ -1905,11 +1986,11 @@ lvgl:
                   id: calibration3_ok_button_label
                   align: CENTER
                   width: 142
-                  text_font: MONTSERRAT_20
+                  text_font: ICON_FONT_30
                   text_align: CENTER
                   text_color: !lambda return lv_color_hex(id(color_100));
                   bg_color: !lambda return lv_color_hex(id(color_50));
-                  text: "Done"
+                  text: "\U000F012C" # mdi-check
             on_click:
               - script.execute: reset_gas_consumption
               - lvgl.page.show: calibration4_page
@@ -2759,11 +2840,15 @@ script:
           - calibration_button_label
           - calibration_button_cog_label
           - calibration0_label
+          - calibration0_abort_button
+          - calibration0_abort_button_label
           - calibration0_next_button
           - calibration0_next_button_label
-          - calibration1_label
-          - calibration1_next_button
-          - calibration1_next_button_label
+          - calibration1full_label
+          - calibration1full_abort_button
+          - calibration1full_abort_button_label
+          - calibration1full_next_button
+          - calibration1full_next_button_label
           - calibration2_label
           - calibration2_tare_label
           - calibration2_slider
@@ -2771,6 +2856,8 @@ script:
           - calibration2_inc_button_label
           - calibration2_dec_button
           - calibration2_dec_button_label
+          - calibration2_abort_button
+          - calibration2_abort_button_label
           - calibration2_ok_button
           - calibration2_ok_button_label
           - calibration3_label
