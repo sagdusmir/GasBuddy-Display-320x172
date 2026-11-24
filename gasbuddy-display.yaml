@@ -649,10 +649,6 @@ globals:
   - id: calibration1used_hundredths
     type: int
     initial_value: '500'
-  # Gross weight in grams for calibration1used_page.
-  - id: calibration1used_gross_g
-    type: int
-    initial_value: '0'
   # Choices for the bottle-size buttons. Button text is the value itself.
   - id: scale_bottle_kg_options
     type: std::array<int, 3>
@@ -1481,7 +1477,6 @@ lvgl:
               id(settings_scale_bottle_kg) = id(settings_scale_bottle_kg_persistent);
               id(settings_scale_bottle_g) = id(settings_scale_bottle_kg) * 1000;
               id(calibration2_hundredths) = id(calibration2_hundredths_persisted);
-              id(calibration1used_gross_g) = 0;
           - script.execute: scale_power_on
       widgets:
         - label:
@@ -1547,7 +1542,7 @@ lvgl:
                   if (id(uart_gas_value) >= 0) {
                     id(settings_scale_raw_zero) = id(uart_gas_value);
                   }
-              - lvgl.page.show: calibration1_page
+              - lvgl.page.show: calibration2_page
 
   # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
     - id: calibration1_page
@@ -1867,12 +1862,15 @@ lvgl:
                   text: "\U000F0142" # mdi-chevron-right
             on_click:
               - lambda: |-
-                  // Slider value is hundredths of a kilogram. gross_g is grams.
-                  id(calibration1used_gross_g) = id(calibration1used_hundredths) * 10;
-                  if (id(calibration1used_gross_g) > 0) {
-                    id(settings_scale_bottle_g) = id(calibration1used_gross_g);
+                  // Slider and tare are hundredths of a kilogram. One hundredth is 10 g.
+                  const int gross_g = id(calibration1used_hundredths) * 10;
+                  const int tare_g = id(calibration2_hundredths) * 10;
+                  int gas_g = gross_g - tare_g;
+                  if (gas_g < 1) {
+                    gas_g = 1;
                   }
-              - lvgl.page.show: calibration2_page
+                  id(settings_scale_bottle_g) = gas_g;
+              - lvgl.page.show: calibration3_page
 
   # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
     - id: calibration1full_page
@@ -2063,7 +2061,7 @@ lvgl:
                   bg_color: !lambda return lv_color_hex(id(color_50));
                   text: "\U000F0142" # mdi-chevron-right
             on_click:
-              - lvgl.page.show: calibration2_page
+              - lvgl.page.show: calibration3_page
 
   # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
     - id: calibration2_page
@@ -2274,7 +2272,7 @@ lvgl:
                   bg_color: !lambda return lv_color_hex(id(color_50));
                   text: "\U000F0142" # mdi-chevron-right
             on_click:
-              - lvgl.page.show: calibration3_page
+              - lvgl.page.show: calibration1_page
 
   # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
     - id: calibration3_page
@@ -2359,12 +2357,7 @@ lvgl:
               if (id(uart_gas_value) >= 0) {
                 id(settings_scale_raw_zero_persistent) = id(settings_scale_raw_zero);
                 id(settings_scale_bottle_kg_persistent) = id(settings_scale_bottle_kg);
-                if (id(calibration1used_gross_g) > 0) {
-                  id(settings_scale_bottle_g) = id(calibration1used_gross_g);
-                  id(settings_scale_bottle_g_persistent) = id(calibration1used_gross_g);
-                } else {
-                  id(settings_scale_bottle_g_persistent) = id(settings_scale_bottle_kg_persistent) * 1000;
-                }
+                id(settings_scale_bottle_g_persistent) = id(settings_scale_bottle_g);
                 id(calibration2_hundredths_persisted) = id(calibration2_hundredths);
                 id(settings_scale_brutto_persistent) = id(uart_gas_value);
                 ESP_LOGI("uart_gasbuddy", "Calibration saved: zero %d brutto %d bottle %d kg empty %d hundredths", id(settings_scale_raw_zero_persistent), id(settings_scale_brutto_persistent), id(settings_scale_bottle_kg_persistent), id(calibration2_hundredths_persisted));
