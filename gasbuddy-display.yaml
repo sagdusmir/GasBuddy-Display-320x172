@@ -2341,8 +2341,14 @@ lvgl:
                   bg_color: !lambda return lv_color_hex(id(color_50));
                   text: "\U000F012C" # mdi-check
             on_click:
-              - script.execute: reset_gas_consumption
-              - lvgl.page.show: calibration4_page
+              - if:
+                  condition:
+                    lambda: 'return id(uart_gas_value) >= 0;'
+                  then:
+                    - script.execute: reset_gas_consumption
+                    - lvgl.page.show: calibration4_page
+                  else:
+                    - lvgl.page.show: calibration4_noreading_page
 
   # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
     - id: calibration4_page
@@ -2394,6 +2400,51 @@ lvgl:
             widgets:
               - label:
                   id: calibration4_understood_button_label
+                  align: CENTER
+                  width: 292
+                  text_font: MONTSERRAT_20
+                  text_align: CENTER
+                  text_color: !lambda return lv_color_hex(id(color_100));
+                  bg_color: !lambda return lv_color_hex(id(color_50));
+                  text: "Understood"
+
+  # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+    - id: calibration4_noreading_page
+      skip: true
+      bg_color: 0
+      bg_opa: COVER
+      pad_all: 0
+      scrollable: false
+      widgets:
+        - label:
+            id: calibration4_noreading_label
+            x: 14
+            y: 32
+            width: 292
+            height: 100
+            text_font: MONTSERRAT_20
+            text_align: CENTER
+            long_mode: WRAP
+            bg_opa: TRANSP
+            text_color: !lambda return lv_color_hex(id(color_100));
+            text: "No GasBuddy reading.\nCalibration was not stored.\nPrevious settings are unchanged."
+        - button:
+            id: calibration4_noreading_understood_button
+            x: 14
+            y: 136
+            width: 292
+            height: 36
+            pad_all: 0
+            scrollable: false
+            radius: 0
+            bg_opa: COVER
+            bg_color: !lambda return lv_color_hex(id(color_50));
+            shadow_color: !lambda return lv_color_hex(id(color_25));
+            on_click:
+              - lvgl.page.show: scale_page
+            widgets:
+              - label:
+                  id: calibration4_noreading_understood_button_label
                   align: CENTER
                   width: 292
                   text_font: MONTSERRAT_20
@@ -3238,6 +3289,9 @@ script:
           - calibration4_label
           - calibration4_understood_button
           - calibration4_understood_button_label
+          - calibration4_noreading_label
+          - calibration4_noreading_understood_button
+          - calibration4_noreading_understood_button_label
           - calibration_bottle_kg_button_0
           - calibration_bottle_kg_button_0_label
           - calibration_bottle_kg_button_1
