@@ -66,6 +66,13 @@ substitutions:
   CALIBRATION2_MAX_HUNDREDTHS: "1500"
   CALIBRATION2_STEP_HUNDREDTHS: "5"
 
+  # Used-bottle gross weight on calibration1used_page, in hundredths of a
+  # kilogram (500 = 5.00 kg). One hundredth is 10 g. The slider and buttons
+  # move 5 hundredths (50 g), the same step as the tare page.
+  CALIBRATION1USED_MIN_HUNDREDTHS: "500"
+  CALIBRATION1USED_MAX_HUNDREDTHS: "2400"
+  CALIBRATION1USED_STEP_HUNDREDTHS: "5"
+
   # 0: remaining gas comes from the scale. 1: the calculation uses a raw
   # count that falls over time, so the display shows a bottle losing gas.
   DEMO_MODE: "0"
@@ -607,6 +614,11 @@ globals:
     type: int
     initial_value: '11'
     restore_value: true
+  # Fill weight in grams. 11000 matches the default 11 kg bottle.
+  - id: settings_scale_bottle_g_persistent
+    type: int
+    initial_value: '11000'
+    restore_value: true
   # Empty-bottle weight in hundredths of a kilogram (1000 = 10.00 kg).
   - id: calibration2_hundredths_persisted
     type: int
@@ -625,11 +637,22 @@ globals:
   - id: settings_scale_bottle_kg
     type: int
     initial_value: '0'
+  - id: settings_scale_bottle_g
+    type: int
+    initial_value: '0'
   # Hundredths of a kilogram shown on calibration2_page. Loaded from
   # calibration2_hundredths_persisted when the wizard opens.
   - id: calibration2_hundredths
     type: int
     initial_value: '1000'
+  # Hundredths of a kilogram shown on calibration1used_page (500 = 5000 g).
+  - id: calibration1used_hundredths
+    type: int
+    initial_value: '500'
+  # Gross weight in grams for calibration1used_page.
+  - id: calibration1used_gross_g
+    type: int
+    initial_value: '0'
   # Choices for the bottle-size buttons. Button text is the value itself.
   - id: scale_bottle_kg_options
     type: std::array<int, 3>
@@ -711,12 +734,7 @@ font:
       - "\U000F0156" # mdi-close
       - "\U000F0142" # mdi-chevron-right
       - "\U000F012C" # mdi-check
-    # The icon font has no space glyph. A Montserrat space separates the chevrons.
-    extras:
-      - file: 'https://raw.githubusercontent.com/sagdusmir/GasBuddy-Display-320x172/main/fonts/Montserrat/Montserrat-Bold.ttf'
-        # file: 'fonts/Montserrat/Montserrat-Bold.ttf'
-        glyphs:
-          - " "
+      - "\U000F1358" # mdi-propane-tank-outline
   - file: 'https://raw.githubusercontent.com/sagdusmir/GasBuddy-Display-320x172/main/fonts/MaterialDesign-Webfont/materialdesignicons-webfont.ttf'
     # file: 'fonts/MaterialDesign-Webfont/materialdesignicons-webfont.ttf'
     id: ICON_FONT_39
@@ -1461,7 +1479,9 @@ lvgl:
               id(scale_hold) = true;
               id(settings_scale_raw_zero) = id(settings_scale_raw_zero_persistent);
               id(settings_scale_bottle_kg) = id(settings_scale_bottle_kg_persistent);
+              id(settings_scale_bottle_g) = id(settings_scale_bottle_kg) * 1000;
               id(calibration2_hundredths) = id(calibration2_hundredths_persisted);
+              id(calibration1used_gross_g) = 0;
           - script.execute: scale_power_on
       widgets:
         - label:
@@ -1521,13 +1541,338 @@ lvgl:
                   text_align: CENTER
                   text_color: !lambda return lv_color_hex(id(color_100));
                   bg_color: !lambda return lv_color_hex(id(color_50));
-                  text: "\U000F0142 \U000F0142 \U000F0142" # mdi-chevron-right
+                  text: "\U000F0142" # mdi-chevron-right
             on_click:
               - lambda: |-
                   if (id(uart_gas_value) >= 0) {
                     id(settings_scale_raw_zero) = id(uart_gas_value);
                   }
+              - lvgl.page.show: calibration1_page
+
+  # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+    - id: calibration1_page
+      skip: true
+      bg_color: 0
+      bg_opa: COVER
+      pad_all: 0
+      scrollable: false
+      widgets:
+        - button:
+            id: calibration1_full_button
+            x: 14
+            y: 48
+            width: 142
+            height: 80
+            pad_all: 0
+            scrollable: false
+            radius: 0
+            bg_opa: COVER
+            bg_color: !lambda return lv_color_hex(id(color_50));
+            shadow_color: !lambda return lv_color_hex(id(color_25));
+            widgets:
+              - label:
+                  id: calibration1_full_button_icon
+                  x: 35
+                  y: 25
+                  width: 30
+                  text_font: ICON_FONT_30
+                  text_align: CENTER
+                  text_color: !lambda return lv_color_hex(id(color_100));
+                  bg_color: !lambda return lv_color_hex(id(color_50));
+                  text: "\U000F1358" # mdi-propane-tank-outline
+              - label:
+                  id: calibration1_full_button_label
+                  x: 73
+                  y: 30
+                  width: 48
+                  text_font: MONTSERRAT_20
+                  text_align: LEFT
+                  text_color: !lambda return lv_color_hex(id(color_100));
+                  bg_color: !lambda return lv_color_hex(id(color_50));
+                  text: "full"
+            on_click:
               - lvgl.page.show: calibration1full_page
+        - button:
+            id: calibration1_used_button
+            x: 164
+            y: 48
+            width: 142
+            height: 80
+            pad_all: 0
+            scrollable: false
+            radius: 0
+            bg_opa: COVER
+            bg_color: !lambda return lv_color_hex(id(color_50));
+            shadow_color: !lambda return lv_color_hex(id(color_25));
+            widgets:
+              - label:
+                  id: calibration1_used_button_icon
+                  x: 26
+                  y: 25
+                  width: 30
+                  text_font: ICON_FONT_30
+                  text_align: CENTER
+                  text_color: !lambda return lv_color_hex(id(color_100));
+                  bg_color: !lambda return lv_color_hex(id(color_50));
+                  text: "\U000F1358" # mdi-propane-tank-outline
+              - label:
+                  id: calibration1_used_button_label
+                  x: 64
+                  y: 30
+                  width: 64
+                  text_font: MONTSERRAT_20
+                  text_align: LEFT
+                  text_color: !lambda return lv_color_hex(id(color_100));
+                  bg_color: !lambda return lv_color_hex(id(color_50));
+                  text: "used"
+            on_click:
+              - lvgl.page.show: calibration1used_page
+        - button:
+            id: calibration1_abort_button
+            x: 14
+            y: 136
+            width: 292
+            height: 36
+            pad_all: 0
+            scrollable: false
+            radius: 0
+            bg_opa: COVER
+            bg_color: !lambda return lv_color_hex(id(color_50));
+            shadow_color: !lambda return lv_color_hex(id(color_25));
+            widgets:
+              - label:
+                  id: calibration1_abort_button_label
+                  align: CENTER
+                  width: 292
+                  text_font: ICON_FONT_30
+                  text_align: CENTER
+                  text_color: !lambda return lv_color_hex(id(color_100));
+                  bg_color: !lambda return lv_color_hex(id(color_50));
+                  text: "\U000F0156" # mdi-close
+            on_click:
+              - lvgl.page.show: scale_page
+
+  # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+    - id: calibration1used_page
+      skip: true
+      bg_color: 0
+      bg_opa: COVER
+      pad_all: 0
+      scrollable: false
+      on_load:
+        then:
+          - lambda: |-
+              const int lo = ${CALIBRATION1USED_MIN_HUNDREDTHS};
+              const int hi = ${CALIBRATION1USED_MAX_HUNDREDTHS};
+              const int step = ${CALIBRATION1USED_STEP_HUNDREDTHS};
+              // Persisted tare is hundredths (10 g). The fill is the gram
+              // setting. The slider uses the same hundredths as tare.
+              const int tare_g = id(calibration2_hundredths) * 10;
+              const int gross_g = tare_g + id(settings_scale_bottle_g);
+              int v = gross_g / 10;
+              if (v < lo) v = lo;
+              if (v > hi) v = hi;
+              v = ((v - lo + step / 2) / step) * step + lo;
+              if (v > hi) v = hi;
+              id(calibration1used_hundredths) = v;
+              lv_slider_set_value(calibration1used_slider, v, LV_ANIM_OFF);
+          - lvgl.label.update:
+              id: calibration1used_label
+              text: !lambda |-
+                static char buf[12];
+                snprintf(buf, sizeof(buf), "%d g", id(calibration1used_hundredths) * 10);
+                return buf;
+      widgets:
+        - label:
+            id: calibration1used_label
+            x: 14
+            y: 32
+            width: 220
+            height: 28
+            text_font: MONTSERRAT_20
+            text_align: CENTER
+            bg_opa: TRANSP
+            text_color: !lambda return lv_color_hex(id(color_100));
+            text: " "
+        - button:
+            id: calibration1used_inc_button
+            x: 244
+            y: 40
+            width: 62
+            height: 44
+            pad_all: 0
+            scrollable: false
+            radius: 0
+            bg_opa: COVER
+            bg_color: !lambda return lv_color_hex(id(color_50));
+            shadow_color: !lambda return lv_color_hex(id(color_25));
+            widgets:
+              - label:
+                  id: calibration1used_inc_button_label
+                  align: CENTER
+                  text_font: ICON_FONT_30
+                  text_color: !lambda return lv_color_hex(id(color_100));
+                  bg_color: !lambda return lv_color_hex(id(color_50));
+                  text: "\U000F0415"
+            on_click:
+              - lambda: |-
+                  const int step = ${CALIBRATION1USED_STEP_HUNDREDTHS};
+                  const int hi = ${CALIBRATION1USED_MAX_HUNDREDTHS};
+                  int next = id(calibration1used_hundredths) + step;
+                  if (next > hi) next = hi;
+                  id(calibration1used_hundredths) = next;
+              - lvgl.slider.update:
+                  id: calibration1used_slider
+                  animated: false
+                  value: !lambda return id(calibration1used_hundredths);
+              - lvgl.label.update:
+                  id: calibration1used_label
+                  text: !lambda |-
+                    static char buf[12];
+                    snprintf(buf, sizeof(buf), "%d g", id(calibration1used_hundredths) * 10);
+                    return buf;
+        - button:
+            id: calibration1used_dec_button
+            x: 244
+            y: 88
+            width: 62
+            height: 44
+            pad_all: 0
+            scrollable: false
+            radius: 0
+            bg_opa: COVER
+            bg_color: !lambda return lv_color_hex(id(color_50));
+            shadow_color: !lambda return lv_color_hex(id(color_25));
+            widgets:
+              - label:
+                  id: calibration1used_dec_button_label
+                  align: CENTER
+                  text_font: ICON_FONT_30
+                  text_color: !lambda return lv_color_hex(id(color_100));
+                  bg_color: !lambda return lv_color_hex(id(color_50));
+                  text: "\U000F0374"
+            on_click:
+              - lambda: |-
+                  const int step = ${CALIBRATION1USED_STEP_HUNDREDTHS};
+                  const int lo = ${CALIBRATION1USED_MIN_HUNDREDTHS};
+                  int next = id(calibration1used_hundredths) - step;
+                  if (next < lo) next = lo;
+                  id(calibration1used_hundredths) = next;
+              - lvgl.slider.update:
+                  id: calibration1used_slider
+                  animated: false
+                  value: !lambda return id(calibration1used_hundredths);
+              - lvgl.label.update:
+                  id: calibration1used_label
+                  text: !lambda |-
+                    static char buf[12];
+                    snprintf(buf, sizeof(buf), "%d g", id(calibration1used_hundredths) * 10);
+                    return buf;
+        - slider:
+            id: calibration1used_slider
+            x: 14
+            y: 72
+            width: 220
+            height: 15
+            min_value: ${CALIBRATION1USED_MIN_HUNDREDTHS}
+            max_value: ${CALIBRATION1USED_MAX_HUNDREDTHS}
+            value: ${CALIBRATION1USED_MIN_HUNDREDTHS}
+            bg_color: !lambda return lv_color_hex(id(color_25));
+            indicator:
+              bg_color: !lambda return lv_color_hex(id(color_50));
+            knob:
+              bg_color: !lambda return lv_color_hex(id(color_100));
+            on_value:
+              - lambda: |-
+                  const int lo = ${CALIBRATION1USED_MIN_HUNDREDTHS};
+                  const int hi = ${CALIBRATION1USED_MAX_HUNDREDTHS};
+                  const int step = ${CALIBRATION1USED_STEP_HUNDREDTHS};
+                  // x is float. Integer division is required: float division
+                  // turns a 50 g step into +20 g and each event walks further.
+                  int v = (int) x;
+                  if (v < lo) v = lo;
+                  if (v > hi) v = hi;
+                  int snapped = ((v - lo + step / 2) / step) * step + lo;
+                  if (snapped < lo) snapped = lo;
+                  if (snapped > hi) snapped = hi;
+                  id(calibration1used_hundredths) = snapped;
+                  if (snapped != v) {
+                    lv_slider_set_value(calibration1used_slider, snapped, LV_ANIM_OFF);
+                  }
+              - lvgl.label.update:
+                  id: calibration1used_label
+                  text: !lambda |-
+                    static char buf[12];
+                    snprintf(buf, sizeof(buf), "%d g", id(calibration1used_hundredths) * 10);
+                    return buf;
+        - label:
+            id: calibration1used_tare_label
+            x: 14
+            y: 90
+            width: 220
+            height: 44
+            text_font: MONTSERRAT_20
+            text_align: CENTER
+            long_mode: WRAP
+            bg_opa: TRANSP
+            pad_all: 0
+            border_width: 0
+            text_color: !lambda return lv_color_hex(id(color_100));
+            text: "Gas bottle\ngross weight"
+        - button:
+            id: calibration1used_abort_button
+            x: 14
+            y: 136
+            width: 142
+            height: 36
+            pad_all: 0
+            scrollable: false
+            radius: 0
+            bg_opa: COVER
+            bg_color: !lambda return lv_color_hex(id(color_50));
+            shadow_color: !lambda return lv_color_hex(id(color_25));
+            widgets:
+              - label:
+                  id: calibration1used_abort_button_label
+                  align: CENTER
+                  width: 142
+                  text_font: ICON_FONT_30
+                  text_align: CENTER
+                  text_color: !lambda return lv_color_hex(id(color_100));
+                  bg_color: !lambda return lv_color_hex(id(color_50));
+                  text: "\U000F0156" # mdi-close
+            on_click:
+              - lvgl.page.show: scale_page
+        - button:
+            id: calibration1used_ok_button
+            x: 164
+            y: 136
+            width: 142
+            height: 36
+            pad_all: 0
+            scrollable: false
+            radius: 0
+            bg_opa: COVER
+            bg_color: !lambda return lv_color_hex(id(color_50));
+            shadow_color: !lambda return lv_color_hex(id(color_25));
+            widgets:
+              - label:
+                  id: calibration1used_ok_button_label
+                  align: CENTER
+                  width: 142
+                  text_font: ICON_FONT_30
+                  text_align: CENTER
+                  text_color: !lambda return lv_color_hex(id(color_100));
+                  bg_color: !lambda return lv_color_hex(id(color_50));
+                  text: "\U000F0142" # mdi-chevron-right
+            on_click:
+              - lambda: |-
+                  // Slider value is hundredths of a kilogram. gross_g is grams.
+                  id(calibration1used_gross_g) = id(calibration1used_hundredths) * 10;
+                  if (id(calibration1used_gross_g) > 0) {
+                    id(settings_scale_bottle_g) = id(calibration1used_gross_g);
+                  }
+              - lvgl.page.show: calibration2_page
 
   # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
     - id: calibration1full_page
@@ -1587,7 +1932,9 @@ lvgl:
                     snprintf(buf, sizeof(buf), "%d kg", id(scale_bottle_kg_options)[0]);
                     return buf;
             on_click:
-              - lambda: id(settings_scale_bottle_kg) = id(scale_bottle_kg_options)[0];
+              - lambda: |-
+                  id(settings_scale_bottle_kg) = id(scale_bottle_kg_options)[0];
+                  id(settings_scale_bottle_g) = id(settings_scale_bottle_kg) * 1000;
               - script.execute: show_scale_bottle_kg_selection
         - button:
             id: calibration_bottle_kg_button_1
@@ -1625,7 +1972,9 @@ lvgl:
                     snprintf(buf, sizeof(buf), "%d kg", id(scale_bottle_kg_options)[1]);
                     return buf;
             on_click:
-              - lambda: id(settings_scale_bottle_kg) = id(scale_bottle_kg_options)[1];
+              - lambda: |-
+                  id(settings_scale_bottle_kg) = id(scale_bottle_kg_options)[1];
+                  id(settings_scale_bottle_g) = id(settings_scale_bottle_kg) * 1000;
               - script.execute: show_scale_bottle_kg_selection
         - button:
             id: calibration_bottle_kg_button_2
@@ -1663,7 +2012,9 @@ lvgl:
                     snprintf(buf, sizeof(buf), "%d kg", id(scale_bottle_kg_options)[2]);
                     return buf;
             on_click:
-              - lambda: id(settings_scale_bottle_kg) = id(scale_bottle_kg_options)[2];
+              - lambda: |-
+                  id(settings_scale_bottle_kg) = id(scale_bottle_kg_options)[2];
+                  id(settings_scale_bottle_g) = id(settings_scale_bottle_kg) * 1000;
               - script.execute: show_scale_bottle_kg_selection
         - button:
             id: calibration1full_abort_button
@@ -1710,7 +2061,7 @@ lvgl:
                   text_align: CENTER
                   text_color: !lambda return lv_color_hex(id(color_100));
                   bg_color: !lambda return lv_color_hex(id(color_50));
-                  text: "\U000F0142 \U000F0142 \U000F0142" # mdi-chevron-right
+                  text: "\U000F0142" # mdi-chevron-right
             on_click:
               - lvgl.page.show: calibration2_page
 
@@ -1921,7 +2272,7 @@ lvgl:
                   text_align: CENTER
                   text_color: !lambda return lv_color_hex(id(color_100));
                   bg_color: !lambda return lv_color_hex(id(color_50));
-                  text: "\U000F0142 \U000F0142 \U000F0142" # mdi-chevron-right
+                  text: "\U000F0142" # mdi-chevron-right
             on_click:
               - lvgl.page.show: calibration3_page
 
@@ -2008,6 +2359,12 @@ lvgl:
               if (id(uart_gas_value) >= 0) {
                 id(settings_scale_raw_zero_persistent) = id(settings_scale_raw_zero);
                 id(settings_scale_bottle_kg_persistent) = id(settings_scale_bottle_kg);
+                if (id(calibration1used_gross_g) > 0) {
+                  id(settings_scale_bottle_g) = id(calibration1used_gross_g);
+                  id(settings_scale_bottle_g_persistent) = id(calibration1used_gross_g);
+                } else {
+                  id(settings_scale_bottle_g_persistent) = id(settings_scale_bottle_kg_persistent) * 1000;
+                }
                 id(calibration2_hundredths_persisted) = id(calibration2_hundredths);
                 id(settings_scale_brutto_persistent) = id(uart_gas_value);
                 ESP_LOGI("uart_gasbuddy", "Calibration saved: zero %d brutto %d bottle %d kg empty %d hundredths", id(settings_scale_raw_zero_persistent), id(settings_scale_brutto_persistent), id(settings_scale_bottle_kg_persistent), id(calibration2_hundredths_persisted));
@@ -2482,7 +2839,8 @@ script:
           int64_t brutto = id(settings_scale_brutto_persistent);
           int64_t raw = id(uart_gas_value);
           int64_t empty_h = id(calibration2_hundredths_persisted);
-          int64_t fill_h = (int64_t) id(settings_scale_bottle_kg_persistent) * 100;
+          // One hundredth of a kilogram is 10 g.
+          int64_t fill_h = (int64_t) id(settings_scale_bottle_g_persistent) / 10;
           // Exact remaining grams while DEMO_MODE is on. The usage slope and
           // the gram readout both follow this. The percent bar still steps
           // in whole percents.
@@ -2844,6 +3202,25 @@ script:
           - calibration0_abort_button_label
           - calibration0_next_button
           - calibration0_next_button_label
+          - calibration1_full_button
+          - calibration1_full_button_icon
+          - calibration1_full_button_label
+          - calibration1_used_button
+          - calibration1_used_button_icon
+          - calibration1_used_button_label
+          - calibration1_abort_button
+          - calibration1_abort_button_label
+          - calibration1used_label
+          - calibration1used_tare_label
+          - calibration1used_slider
+          - calibration1used_inc_button
+          - calibration1used_inc_button_label
+          - calibration1used_dec_button
+          - calibration1used_dec_button_label
+          - calibration1used_abort_button
+          - calibration1used_abort_button_label
+          - calibration1used_ok_button
+          - calibration1used_ok_button_label
           - calibration1full_label
           - calibration1full_abort_button
           - calibration1full_abort_button_label
@@ -2904,6 +3281,10 @@ script:
           lv_obj_set_style_bg_color(calibration2_slider, lv_color_hex(id(color_100)), LV_PART_KNOB);
           lv_obj_set_style_text_color(calibration2_label, lv_color_hex(id(color_100)), LV_PART_MAIN);
           lv_obj_set_style_text_color(calibration2_tare_label, lv_color_hex(id(color_100)), LV_PART_MAIN);
+          lv_obj_set_style_bg_color(calibration1used_slider, lv_color_hex(id(color_50)), LV_PART_INDICATOR);
+          lv_obj_set_style_bg_color(calibration1used_slider, lv_color_hex(id(color_100)), LV_PART_KNOB);
+          lv_obj_set_style_text_color(calibration1used_label, lv_color_hex(id(color_100)), LV_PART_MAIN);
+          lv_obj_set_style_text_color(calibration1used_tare_label, lv_color_hex(id(color_100)), LV_PART_MAIN);
       - script.execute: style_bottle_kg_buttons
 
   - id: style_bottle_kg_buttons
