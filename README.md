@@ -204,7 +204,7 @@ Each [GitHub Release](https://github.com/sagdusmir/GasBuddy-Display-320x172/rele
 
 ## Troubleshooting
 
-1. If compiling and flashing the ESP32 succeeds, but the screen is looking distorted afterwards, skimply turn the power off and on agaoin. Pressing the BOOT button in the device is not sufficient.
+1. If compiling and flashing the ESP32 succeeds, but the screen is looking distorted afterwards, skimply turn the power off and on again. Pressing the BOOT button in the device is not sufficient.
 
 2. If you get A LOT of strange syntax errors, try to clean up the configured build folder via
    ```bash
